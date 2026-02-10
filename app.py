@@ -1,82 +1,94 @@
 import streamlit as st
 import PyPDF2
 
-st.title("AI Resume Analyzer")
+st.set_page_config(page_title="AI Career Copilot", page_icon="🚀")
+
+st.title("🚀 AI Career Copilot")
+st.write("Smart Resume Analyzer for AI & Cloud Career Roles")
 
 role = st.selectbox(
-    "Select the job role you are targeting:",
-    ["Software Developer", "Data Scientist", "Cloud Engineer"]
+    "Select your target role:",
+    ["Data Scientist", "ML Engineer", "Cloud Engineer", "AI Engineer"]
 )
 
-uploaded_file = st.file_uploader("Upload your resume (PDF)", type=["pdf"])
+uploaded_file = st.file_uploader("Upload your resume (PDF)", type="pdf")
 
 def extract_text_from_pdf(file):
+    reader = PyPDF2.PdfReader(file)
     text = ""
-    pdf_reader = PyPDF2.PdfReader(file)
-    for page in pdf_reader.pages:
-        if page.extract_text():
-            text += page.extract_text()
+    for page in reader.pages:
+        text += page.extract_text()
     return text
 
+roles_skills = {
+    "Data Scientist": ["python", "machine learning", "data science", "sql", "statistics", "pandas"],
+    "ML Engineer": ["python", "tensorflow", "pytorch", "deep learning", "docker", "api"],
+    "Cloud Engineer": ["aws", "azure", "gcp", "docker", "kubernetes", "linux"],
+    "AI Engineer": ["python", "machine learning", "deep learning", "nlp", "tensorflow", "pytorch"]
+}
+
+project_suggestions = {
+    "aws": "Build a cloud file upload system using AWS S3",
+    "docker": "Containerize an app using Docker",
+    "kubernetes": "Deploy an app using Kubernetes",
+    "machine learning": "Build a prediction model",
+    "deep learning": "Build an image classifier",
+    "nlp": "Create an AI chatbot",
+    "sql": "Build a database project",
+    "api": "Create a REST API using Flask"
+}
+
 if uploaded_file is not None:
-    text = extract_text_from_pdf(uploaded_file)
+    resume_text = extract_text_from_pdf(uploaded_file)
+    resume_text_lower = resume_text.lower()
 
-    st.subheader("Extracted Resume Text")
-    st.write(text)
-
-    # Role-based skills
-    if role == "Software Developer":
-        skills = ["Python", "Java", "C++", "SQL", "Git", "Data Structures", "HTML", "CSS", "JavaScript"]
-    elif role == "Data Scientist":
-        skills = ["Python", "Machine Learning", "Pandas", "NumPy", "SQL", "Data Visualization"]
-    else:
-        skills = ["AWS", "Cloud", "Linux", "Docker", "Python", "Networking"]
-
-    st.subheader("Resume Analysis")
+    target_skills = roles_skills[role]
 
     found_skills = []
-    for skill in skills:
-        if skill.lower() in text.lower():
+    for skill in target_skills:
+        if skill in resume_text_lower:
             found_skills.append(skill)
 
-    st.write("### Skills Found in Resume:")
-    if found_skills:
+    missing_skills = [skill for skill in target_skills if skill not in found_skills]
+    score = int((len(found_skills) / len(target_skills)) * 100)
+
+    st.subheader(f"📊 Match Score for {role}")
+    st.success(f"{score}% match")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("✅ Skills You Have")
         st.write(found_skills)
+
+    with col2:
+        st.subheader("❌ Skills Missing")
+        st.write(missing_skills)
+
+    st.subheader("🚀 Project Suggestions To Improve")
+    for skill in missing_skills:
+        if skill in project_suggestions:
+            st.write(f"- {project_suggestions[skill]}")
+
+    st.subheader("🧠 Resume Improvement Tips")
+
+    if score < 40:
+        st.warning("Your resume needs strong improvement for this role.")
+        st.write("- Add more relevant skills")
+        st.write("- Build 2–3 strong projects")
+        st.write("- Mention internships or practical experience")
+
+    elif score < 70:
+        st.info("Good start, but you can improve.")
+        st.write("- Add tools like Docker, APIs, or Cloud platforms")
+        st.write("- Highlight your best projects clearly")
+        st.write("- Add measurable achievements")
+
     else:
-        st.write("No matching skills found.")
+        st.success("Strong profile for this role!")
+        st.write("- Focus on advanced projects")
+        st.write("- Add certifications")
+        st.write("- Start applying for internships/jobs")
 
-    missing_skills = [skill for skill in skills if skill not in found_skills]
-
-    st.write("### Suggested Skills to Add:")
-    st.write(missing_skills[:5])
-
-    # Resume Score
-    st.subheader("Resume Score")
-    score = int((len(found_skills) / len(skills)) * 100)
-    st.write(f"Your Resume Score: {score}/100")
-
-    if score > 70:
-        st.success("Great resume! You have many relevant skills.")
-    elif score > 40:
-        st.warning("Good start, but you can improve by adding more skills.")
-    else:
-        st.error("You need to add more skills to strengthen your resume.")
-
-    # Project Suggestions Feature
-    st.subheader("Recommended Projects For You")
-
-    if "Python" in found_skills:
-        st.write("- Build a Chatbot using Python")
-        st.write("- Create a Resume Analyzer (like this project)")
-    
-    if "AWS" in found_skills or role == "Cloud Engineer":
-        st.write("- Build a Cloud File Upload System using AWS S3")
-        st.write("- Deploy a website using AWS EC2")
-
-    if "Machine Learning" in found_skills or role == "Data Scientist":
-        st.write("- House Price Prediction Model")
-        st.write("- Student Performance Prediction System")
-
-    if not found_skills:
-        st.write("- Start with a basic Python project")
-        st.write("- Build a Personal Portfolio Website")
+st.write("---")
+st.caption("Built by Nithish | Final Year B.Tech | AI & Cloud Career Project")
