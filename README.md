@@ -1,32 +1,76 @@
-# AI Resume Analyzer
+# AI-Career-Copilot 🚀
 
-This is a simple resume analyzer web app built using Python and Streamlit.
+### Smart Resume Analyzer for AI & Cloud Careers
 
-The user can upload their resume in PDF format, and the app will extract the text and analyze it based on the selected job role.
+AI-Career-Copilot is an intelligent resume analysis tool designed to help students and job seekers understand how well their profile matches industry roles in AI and Cloud domains.
 
-## Features
+This project simulates an ATS-style evaluation system and provides personalized career guidance based on skill gaps.
 
-* Upload resume (PDF)
-* Extract text from resume
-* Detect skills from resume
-* Suggest missing skills
-* Give a resume score
-* Recommend projects based on skills
+## 🔥 Key Features
 
-## Technologies Used
+### 🎯 Role-Based Analysis
+
+Select a target role:
+
+* Data Scientist
+* ML Engineer
+* Cloud Engineer
+* AI Engineer
+
+### 📊 Smart Resume Scoring
+
+* Calculates match percentage based on role-specific skills
+* Helps users understand where they stand
+
+### 🧠 Skill Gap Detection
+
+* Identifies skills present in resume
+* Highlights missing industry-relevant skills
+
+### 🚀 Project Recommendations
+
+* Suggests real-world projects to build
+* Helps strengthen portfolio strategically
+
+### 📈 Resume Improvement Tips
+
+* Personalized suggestions based on score
+* Helps optimize resume for placements
+
+## 🛠 Tech Stack
 
 * Python
 * Streamlit
 * PyPDF2
 
-## How to Run
+## 💡 Use Case
 
-1. Install required libraries:
-   pip install -r requirements.txt
+This tool acts as a mini "AI Career Assistant" that helps:
 
-2. Run the app:
-   python -m streamlit run app.py
+* Students preparing for placements
+* Beginners entering AI/Cloud field
+* Candidates improving resumes
 
-## About
+## 🧪 How to Run
 
-I built this project to understand how resume screening works and to practice building a simple AI-based web application using Python.
+Install dependencies:
+
+```
+pip install streamlit PyPDF2
+```
+
+Run application:
+
+```
+python -m streamlit run app.py
+```
+
+## 📌 Project Goal
+
+To build a practical, real-world career guidance system that bridges the gap between student resumes and industry expectations.
+
+## 👨‍💻 Author
+
+Nithish
+Final Year B.Tech Student
+Focused on AI & Cloud Engineering
