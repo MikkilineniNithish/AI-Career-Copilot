@@ -1,94 +1,92 @@
 import streamlit as st
 import PyPDF2
 
-st.set_page_config(page_title="AI Career Copilot", page_icon="🚀")
+st.set_page_config(page_title="AI Career Copilot", page_icon="🤖")
 
-st.title("🚀 AI Career Copilot")
-st.write("Smart Resume Analyzer for AI & Cloud Career Roles")
+st.title("🤖 AI Career Copilot")
+st.write("Upload your resume and get AI-based analysis")
 
-role = st.selectbox(
-    "Select your target role:",
-    ["Data Scientist", "ML Engineer", "Cloud Engineer", "AI Engineer"]
-)
-
-uploaded_file = st.file_uploader("Upload your resume (PDF)", type="pdf")
-
+# ----------- PDF TEXT EXTRACTOR -----------
 def extract_text_from_pdf(file):
-    reader = PyPDF2.PdfReader(file)
+    pdf_reader = PyPDF2.PdfReader(file)
     text = ""
-    for page in reader.pages:
+    for page in pdf_reader.pages:
         text += page.extract_text()
     return text
 
-roles_skills = {
-    "Data Scientist": ["python", "machine learning", "data science", "sql", "statistics", "pandas"],
-    "ML Engineer": ["python", "tensorflow", "pytorch", "deep learning", "docker", "api"],
-    "Cloud Engineer": ["aws", "azure", "gcp", "docker", "kubernetes", "linux"],
-    "AI Engineer": ["python", "machine learning", "deep learning", "nlp", "tensorflow", "pytorch"]
+# ----------- ROLE SKILLS DATABASE -----------
+roles = {
+    "Software Developer": ["python", "java", "c++", "sql", "git", "api"],
+    "Data Analyst": ["python", "excel", "sql", "power bi", "tableau", "statistics"],
+    "Machine Learning Engineer": ["python", "tensorflow", "pytorch", "nlp", "deep learning"]
 }
 
-project_suggestions = {
-    "aws": "Build a cloud file upload system using AWS S3",
-    "docker": "Containerize an app using Docker",
-    "kubernetes": "Deploy an app using Kubernetes",
-    "machine learning": "Build a prediction model",
-    "deep learning": "Build an image classifier",
-    "nlp": "Create an AI chatbot",
-    "sql": "Build a database project",
-    "api": "Create a REST API using Flask"
-}
+# ----------- FILE UPLOAD -----------
+uploaded_file = st.file_uploader("Upload your Resume (PDF only)", type=["pdf"])
+
+# ----------- ROLE SELECT -----------
+selected_role = st.selectbox("Select Target Job Role", list(roles.keys()))
 
 if uploaded_file is not None:
     resume_text = extract_text_from_pdf(uploaded_file)
-    resume_text_lower = resume_text.lower()
+    resume_lower = resume_text.lower()
 
-    target_skills = roles_skills[role]
+    st.subheader("📄 Extracted Resume Text")
+    st.text_area("", resume_text, height=200)
 
-    found_skills = []
-    for skill in target_skills:
-        if skill in resume_text_lower:
-            found_skills.append(skill)
+    # ----------- SKILL MATCHING -----------
+    role_skills = roles[selected_role]
+    matched_skills = []
+    missing_skills = []
 
-    missing_skills = [skill for skill in target_skills if skill not in found_skills]
-    score = int((len(found_skills) / len(target_skills)) * 100)
+    for skill in role_skills:
+        if skill in resume_lower:
+            matched_skills.append(skill)
+        else:
+            missing_skills.append(skill)
 
-    st.subheader(f"📊 Match Score for {role}")
-    st.success(f"{score}% match")
+    score = int((len(matched_skills) / len(role_skills)) * 100)
 
-    col1, col2 = st.columns(2)
+    # ----------- RESUME SCORE -----------
+    st.subheader("📊 Resume Score")
+    st.write(f"Score for {selected_role}: {score}/100")
 
-    with col1:
-        st.subheader("✅ Skills You Have")
-        st.write(found_skills)
-
-    with col2:
-        st.subheader("❌ Skills Missing")
-        st.write(missing_skills)
-
-    st.subheader("🚀 Project Suggestions To Improve")
-    for skill in missing_skills:
-        if skill in project_suggestions:
-            st.write(f"- {project_suggestions[skill]}")
-
-    st.subheader("🧠 Resume Improvement Tips")
-
-    if score < 40:
-        st.warning("Your resume needs strong improvement for this role.")
-        st.write("- Add more relevant skills")
-        st.write("- Build 2–3 strong projects")
-        st.write("- Mention internships or practical experience")
-
-    elif score < 70:
-        st.info("Good start, but you can improve.")
-        st.write("- Add tools like Docker, APIs, or Cloud platforms")
-        st.write("- Highlight your best projects clearly")
-        st.write("- Add measurable achievements")
-
-    else:
+    if score >= 80:
         st.success("Strong profile for this role!")
-        st.write("- Focus on advanced projects")
-        st.write("- Add certifications")
-        st.write("- Start applying for internships/jobs")
+    elif score >= 50:
+        st.warning("Good, but needs improvement.")
+    else:
+        st.error("Needs more relevant skills.")
 
-st.write("---")
-st.caption("Built by Nithish | Final Year B.Tech | AI & Cloud Career Project")
+    # ----------- MATCHED SKILLS -----------
+    st.subheader("✅ Skills Found")
+    st.write(matched_skills)
+
+    # ----------- MISSING SKILLS -----------
+    st.subheader("❌ Skills Missing")
+    st.write(missing_skills)
+
+    # ----------- ATS COMPATIBILITY CHECK (NEW FEATURE) -----------
+    st.subheader("📊 ATS Compatibility Check")
+
+    ats_score = 0
+
+    if "skills" in resume_lower:
+        ats_score += 20
+    if "project" in resume_lower:
+        ats_score += 20
+    if "experience" in resume_lower:
+        ats_score += 20
+    if "education" in resume_lower:
+        ats_score += 20
+    if len(resume_text.split()) > 200:
+        ats_score += 20
+
+    st.write(f"ATS Score: {ats_score}/100")
+
+    if ats_score >= 80:
+        st.success("Your resume is ATS friendly!")
+    elif ats_score >= 50:
+        st.warning("Your resume is moderately ATS friendly. Add more keywords.")
+    else:
+        st.error("Your resume may not pass ATS. Improve structure & keywords.")
