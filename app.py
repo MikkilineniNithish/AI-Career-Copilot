@@ -124,3 +124,35 @@ if uploaded_file is not None:
     if not found_skills:
         st.write("• Start with a basic Python project")
         st.write("• Build a personal portfolio website")
+        st.divider()
+st.subheader("🧠 AI Career Coach Feedback")
+
+feedback = []
+
+# Experience check
+if "experience" not in text.lower():
+    feedback.append("Add an EXPERIENCE section to increase selection chances.")
+
+# Project check
+if "project" not in text.lower():
+    feedback.append("Include PROJECTS. Recruiters love practical work.")
+
+# Skills check
+if len(found_skills) < 3:
+    feedback.append("Add more technical SKILLS relevant to your role.")
+
+# Resume length check
+if len(text.split()) < 250:
+    feedback.append("Your resume looks short. Try adding more content.")
+
+# Achievements check
+if "achieve" not in text.lower() and "award" not in text.lower():
+    feedback.append("Mention achievements or certifications to stand out.")
+
+if feedback:
+    for tip in feedback:
+        st.write("•", tip)
+else:
+    st.success("Your resume looks strong and well structured!")
+
+
