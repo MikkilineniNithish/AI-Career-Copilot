@@ -1,8 +1,16 @@
 import streamlit as st
 import PyPDF2
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 import io
+
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    ListFlowable,
+    ListItem
+)
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
 
 st.set_page_config(page_title="AI Career Copilot", page_icon="🤖", layout="centered")
 
@@ -25,38 +33,64 @@ def extract_text_from_pdf(file):
             text += page.extract_text()
     return text
 
+
 def generate_pdf_report(score, ats_score, match_score, found_skills, missing_skills, feedback):
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    text = c.beginText(40, 750)
-    text.setFont("Helvetica", 11)
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
 
-    lines = [
-        "AI Career Copilot - Resume Analysis Report",
-        "----------------------------------------",
-        f"Resume Score: {score}/100",
-        f"ATS Score: {ats_score}/100",
-        f"JD Match Score: {match_score}%",
-        "",
-        "Skills Found:",
-        ", ".join(found_skills) if found_skills else "None",
-        "",
-        "Missing Skills:",
-        ", ".join(missing_skills),
-        "",
-        "AI Feedback:"
-    ]
+    # Title
+    elements.append(Paragraph("AI Career Copilot - Resume Analysis Report", styles["Title"]))
+    elements.append(Spacer(1, 20))
 
-    for tip in feedback:
-        lines.append(f"- {tip}")
+    # Scores Section
+    elements.append(Paragraph("Scores Overview", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
 
-    for line in lines:
-        text.textLine(line)
+    elements.append(Paragraph(f"<b>Resume Strength Score:</b> {score}/100", styles["Normal"]))
+    elements.append(Paragraph(f"<b>ATS Compatibility Score:</b> {ats_score}/100", styles["Normal"]))
+    elements.append(Paragraph(f"<b>Job Description Match Score:</b> {match_score}%", styles["Normal"]))
+    elements.append(Spacer(1, 20))
 
-    c.drawText(text)
-    c.save()
+    # Skills Found
+    elements.append(Paragraph("Skills Found", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
+
+    if found_skills:
+        skill_list = [ListItem(Paragraph(skill, styles["Normal"])) for skill in found_skills]
+        elements.append(ListFlowable(skill_list, bulletType="bullet"))
+    else:
+        elements.append(Paragraph("No matching skills detected.", styles["Normal"]))
+
+    elements.append(Spacer(1, 20))
+
+    # Missing Skills
+    elements.append(Paragraph("Recommended Skills to Add", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
+
+    if missing_skills:
+        missing_list = [ListItem(Paragraph(skill, styles["Normal"])) for skill in missing_skills]
+        elements.append(ListFlowable(missing_list, bulletType="bullet"))
+    else:
+        elements.append(Paragraph("No major skill gaps detected.", styles["Normal"]))
+
+    elements.append(Spacer(1, 20))
+
+    # AI Feedback
+    elements.append(Paragraph("AI Career Feedback", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
+
+    if feedback:
+        feedback_list = [ListItem(Paragraph(tip, styles["Normal"])) for tip in feedback]
+        elements.append(ListFlowable(feedback_list, bulletType="bullet"))
+    else:
+        elements.append(Paragraph("Your resume structure looks strong.", styles["Normal"]))
+
+    doc.build(elements)
     buffer.seek(0)
     return buffer
+
 
 if uploaded_file is not None:
     text = extract_text_from_pdf(uploaded_file)
@@ -65,7 +99,7 @@ if uploaded_file is not None:
     st.subheader("📜 Resume Preview")
     st.write(text[:1200])
 
-    # Role skills
+    # Role-based skills
     if role == "Software Developer":
         skills = ["Python", "Java", "C++", "SQL", "Git", "HTML", "CSS", "JavaScript"]
     elif role == "Data Scientist":
@@ -85,14 +119,15 @@ if uploaded_file is not None:
     st.write("### ❌ Missing Skills")
     st.write(missing_skills)
 
-    # Resume score
+    # Resume Score
     score = int((len(found_skills) / len(skills)) * 100)
+
     st.divider()
     st.subheader("📊 Resume Strength Score")
     st.progress(score)
     st.write(f"{score}/100")
 
-    # ATS score
+    # ATS Score
     ats_score = 0
     if "skills" in text.lower(): ats_score += 20
     if "project" in text.lower(): ats_score += 20
@@ -100,49 +135,56 @@ if uploaded_file is not None:
     if "education" in text.lower(): ats_score += 20
     if len(text.split()) > 200: ats_score += 20
 
-    st.subheader("🤖 ATS Score")
+    st.subheader("🤖 ATS Compatibility Score")
     st.progress(ats_score)
     st.write(f"{ats_score}/100")
 
-    # Feedback
+    # AI Feedback
     feedback = []
 
     if "experience" not in text.lower():
         feedback.append("Add an EXPERIENCE section.")
     if "project" not in text.lower():
-        feedback.append("Add PROJECTS to show practical work.")
+        feedback.append("Include PROJECTS to show practical exposure.")
     if len(found_skills) < 3:
         feedback.append("Add more role-relevant SKILLS.")
     if len(text.split()) < 250:
-        feedback.append("Resume content looks short.")
+        feedback.append("Resume content appears short.")
     if "certification" not in text.lower():
-        feedback.append("Add certifications to stand out.")
+        feedback.append("Add certifications to strengthen your profile.")
 
     st.divider()
-    st.subheader("🧠 AI Feedback")
+    st.subheader("🧠 AI Career Feedback")
+
     for tip in feedback:
         st.write("•", tip)
 
-    # JD Match
+    # JD Match Score
     match_score = 0
     if jd_text:
         jd_words = jd_text.lower().split()
         resume_words = text.lower().split()
         common = set(jd_words).intersection(set(resume_words))
+
         if len(set(jd_words)) > 0:
             match_score = int((len(common) / len(set(jd_words))) * 100)
 
         st.divider()
-        st.subheader("📊 JD Match Score")
+        st.subheader("📊 Resume vs Job Description Match Score")
         st.progress(match_score)
         st.write(f"{match_score}%")
 
-    # PDF download
+    # Download PDF
     st.divider()
     st.subheader("📥 Download Full Analysis Report")
 
     pdf_file = generate_pdf_report(
-        score, ats_score, match_score, found_skills, missing_skills, feedback
+        score,
+        ats_score,
+        match_score,
+        found_skills,
+        missing_skills,
+        feedback
     )
 
     st.download_button(
