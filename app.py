@@ -13,6 +13,8 @@ role = st.selectbox(
 
 uploaded_file = st.file_uploader("📄 Upload your resume (PDF)", type=["pdf"])
 
+jd_text = st.text_area("📋 Paste Job Description Here (Optional for Match Score)")
+
 def extract_text_from_pdf(file):
     text = ""
     pdf_reader = PyPDF2.PdfReader(file)
@@ -25,8 +27,8 @@ if uploaded_file is not None:
     text = extract_text_from_pdf(uploaded_file)
 
     st.divider()
-    st.subheader("📜 Extracted Resume Text")
-    st.write(text[:1500])   # limit preview
+    st.subheader("📜 Extracted Resume Preview")
+    st.write(text[:1500])
 
     # Role-based skills
     if role == "Software Developer":
@@ -44,10 +46,10 @@ if uploaded_file is not None:
         if skill.lower() in text.lower():
             found_skills.append(skill)
 
+    missing_skills = [skill for skill in skills if skill not in found_skills]
+
     st.write("### ✅ Skills Found")
     st.write(found_skills if found_skills else "No matching skills found")
-
-    missing_skills = [skill for skill in skills if skill not in found_skills]
 
     st.write("### ❌ Skills Missing")
     st.write(missing_skills)
@@ -67,7 +69,7 @@ if uploaded_file is not None:
     else:
         st.error("🚨 Resume needs improvement.")
 
-    # ATS SCORE
+    # ATS Score
     st.divider()
     st.subheader("🤖 ATS Compatibility Score")
 
@@ -93,66 +95,54 @@ if uploaded_file is not None:
     else:
         st.error("❌ Low ATS compatibility")
 
-    # AI Suggestions
+    # AI Feedback
     st.divider()
-    st.subheader("💡 Smart Improvement Tips")
+    st.subheader("🧠 AI Career Coach Feedback")
 
-    if missing_skills:
-        for skill in missing_skills[:5]:
-            st.write(f"• Try adding **{skill}** to improve your chances")
+    feedback = []
 
-    if ats_score < 60:
-        st.write("• Add clear sections: Skills, Projects, Experience, Education")
-        st.write("• Use more keywords from job descriptions")
-        st.write("• Keep resume length at least 1 page")
+    if "experience" not in text.lower():
+        feedback.append("Add an EXPERIENCE section to increase selection chances.")
 
+    if "project" not in text.lower():
+        feedback.append("Include PROJECTS. Recruiters love practical work.")
+
+    if len(found_skills) < 3:
+        feedback.append("Add more technical SKILLS relevant to your role.")
+
+    if len(text.split()) < 250:
+        feedback.append("Your resume looks short. Try adding more content.")
+
+    if "achieve" not in text.lower() and "award" not in text.lower():
+        feedback.append("Mention achievements or certifications to stand out.")
+
+    if feedback:
+        for tip in feedback:
+            st.write("•", tip)
+    else:
+        st.success("Your resume looks strong and well structured!")
+
+    # JD Match Score
     st.divider()
-    st.subheader("🚀 Recommended Projects For You")
+    st.subheader("📊 Resume vs Job Description Match Score")
 
-    if "Python" in found_skills:
-        st.write("• AI Chatbot using Python")
-        st.write("• Resume Analyzer Web App")
+    if jd_text:
+        jd_words = jd_text.lower().split()
+        resume_words = text.lower().split()
 
-    if "AWS" in found_skills or role == "Cloud Engineer":
-        st.write("• AWS Cloud File Upload System")
-        st.write("• Deploy website using EC2")
+        common_words = set(jd_words).intersection(set(resume_words))
 
-    if "Machine Learning" in found_skills or role == "Data Scientist":
-        st.write("• House Price Prediction Model")
-        st.write("• Student Performance Predictor")
+        if len(set(jd_words)) > 0:
+            match_score = int((len(common_words) / len(set(jd_words))) * 100)
+        else:
+            match_score = 0
 
-    if not found_skills:
-        st.write("• Start with a basic Python project")
-        st.write("• Build a personal portfolio website")
-        st.divider()
-st.subheader("🧠 AI Career Coach Feedback")
+        st.progress(match_score)
+        st.write(f"### Match Score: {match_score}%")
 
-feedback = []
-
-# Experience check
-if "experience" not in text.lower():
-    feedback.append("Add an EXPERIENCE section to increase selection chances.")
-
-# Project check
-if "project" not in text.lower():
-    feedback.append("Include PROJECTS. Recruiters love practical work.")
-
-# Skills check
-if len(found_skills) < 3:
-    feedback.append("Add more technical SKILLS relevant to your role.")
-
-# Resume length check
-if len(text.split()) < 250:
-    feedback.append("Your resume looks short. Try adding more content.")
-
-# Achievements check
-if "achieve" not in text.lower() and "award" not in text.lower():
-    feedback.append("Mention achievements or certifications to stand out.")
-
-if feedback:
-    for tip in feedback:
-        st.write("•", tip)
-else:
-    st.success("Your resume looks strong and well structured!")
-
-
+        if match_score > 70:
+            st.success("🔥 Strong match! High chance for shortlist.")
+        elif match_score > 40:
+            st.warning("⚡ Moderate match. Improve resume with more JD keywords.")
+        else:
+            st.error("🚨 Low match. Add more skills/keywords from job description.")
