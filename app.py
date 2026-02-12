@@ -9,10 +9,23 @@ import hashlib
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
 # -----------------------------
-# FIREBASE CONNECTION
+# FIREBASE CONNECTION (FIXED VERSION)
 # -----------------------------
 if not firebase_admin._apps:
-    cred = credentials.Certificate(dict(st.secrets["firebase"]))
+    firebase_dict = {
+        "type": st.secrets["firebase"]["type"],
+        "project_id": st.secrets["firebase"]["project_id"],
+        "private_key_id": st.secrets["firebase"]["private_key_id"],
+        "private_key": st.secrets["firebase"]["private_key"],
+        "client_email": st.secrets["firebase"]["client_email"],
+        "client_id": st.secrets["firebase"]["client_id"],
+        "auth_uri": st.secrets["firebase"]["auth_uri"],
+        "token_uri": st.secrets["firebase"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
+    }
+
+    cred = credentials.Certificate(firebase_dict)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
@@ -78,12 +91,12 @@ if not st.session_state.logged_in:
 # -----------------------------
 else:
     st.sidebar.success("Logged in")
+
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
     st.title("🎯 Welcome to AI Career Copilot")
-
     st.write("You are successfully logged in!")
 
     st.header("Next Features Coming:")
@@ -91,3 +104,4 @@ else:
     st.write("• JD Match Score")
     st.write("• Career Suggestions")
     st.write("• PDF Report Download")
+    
