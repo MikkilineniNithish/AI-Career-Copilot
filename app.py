@@ -12,43 +12,57 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 
-# ---------- PAGE CONFIG ----------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="AI Career Copilot",
     page_icon="🤖",
     layout="centered"
 )
 
-# ---------- DARK UI ----------
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg,#0f172a,#020617);
-    color: white;
-}
+# ---------------- LOGIN SYSTEM ----------------
+if "users" not in st.session_state:
+    st.session_state.users = {}
 
-h1, h2, h3 {
-    color: #38bdf8;
-}
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-.block-container {
-    padding-top: 2rem;
-}
+def login_signup():
+    st.sidebar.title("🔐 Account Access")
 
-.card {
-    background: rgba(255,255,255,0.04);
-    padding: 18px;
-    border-radius: 12px;
-    margin-bottom: 15px;
-    border: 1px solid rgba(255,255,255,0.08);
-}
+    option = st.sidebar.radio("Choose Option", ["Login", "Signup"])
 
-</style>
-""", unsafe_allow_html=True)
+    email = st.sidebar.text_input("Email")
+    password = st.sidebar.text_input("Password", type="password")
 
-# ---------- HEADER ----------
+    if option == "Signup":
+        if st.sidebar.button("Create Account"):
+            if email in st.session_state.users:
+                st.sidebar.error("User already exists")
+            else:
+                st.session_state.users[email] = password
+                st.sidebar.success("Account created! Please login.")
+
+    if option == "Login":
+        if st.sidebar.button("Login"):
+            if email in st.session_state.users and st.session_state.users[email] == password:
+                st.session_state.logged_in = True
+                st.session_state.user_email = email
+                st.sidebar.success("Login successful!")
+            else:
+                st.sidebar.error("Invalid email or password")
+
+login_signup()
+
+# Stop app if not logged in
+if not st.session_state.logged_in:
+    st.title("🤖 AI Career Copilot")
+    st.info("Please login or signup from the left sidebar to continue.")
+    st.stop()
+
+# ---------------- MAIN APP ----------------
 st.title("🤖 AI Career Copilot")
-st.markdown("### 🚀 Smart Resume Analyzer + ATS + JD Matcher")
+st.markdown("### Smart Resume Analyzer + ATS + JD Matcher")
+st.success(f"Logged in as: {st.session_state.user_email}")
 
 role = st.selectbox(
     "🎯 Select your target job role:",
@@ -58,8 +72,7 @@ role = st.selectbox(
 uploaded_file = st.file_uploader("📄 Upload your resume (PDF)", type=["pdf"])
 jd_text = st.text_area("📋 Paste Job Description (Optional)")
 
-
-# ---------- PDF TEXT EXTRACT ----------
+# ---------------- FUNCTIONS ----------------
 def extract_text_from_pdf(file):
     text = ""
     pdf_reader = PyPDF2.PdfReader(file)
@@ -69,7 +82,6 @@ def extract_text_from_pdf(file):
     return text
 
 
-# ---------- PDF REPORT ----------
 def generate_pdf_report(score, ats_score, match_score, found_skills, missing_skills, feedback):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -81,45 +93,52 @@ def generate_pdf_report(score, ats_score, match_score, found_skills, missing_ski
 
     elements.append(Paragraph("Scores Overview", styles["Heading2"]))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"<b>Resume Score:</b> {score}/100", styles["Normal"]))
-    elements.append(Paragraph(f"<b>ATS Score:</b> {ats_score}/100", styles["Normal"]))
+    elements.append(Paragraph(f"<b>Resume Strength Score:</b> {score}/100", styles["Normal"]))
+    elements.append(Paragraph(f"<b>ATS Compatibility Score:</b> {ats_score}/100", styles["Normal"]))
     elements.append(Paragraph(f"<b>JD Match Score:</b> {match_score}%", styles["Normal"]))
     elements.append(Spacer(1, 20))
 
     elements.append(Paragraph("Skills Found", styles["Heading2"]))
     elements.append(Spacer(1, 10))
-    skill_list = [ListItem(Paragraph(skill, styles["Normal"])) for skill in found_skills]
-    elements.append(ListFlowable(skill_list, bulletType="bullet"))
+    if found_skills:
+        skill_list = [ListItem(Paragraph(skill, styles["Normal"])) for skill in found_skills]
+        elements.append(ListFlowable(skill_list, bulletType="bullet"))
+    else:
+        elements.append(Paragraph("No matching skills detected.", styles["Normal"]))
 
     elements.append(Spacer(1, 20))
 
-    elements.append(Paragraph("Missing Skills", styles["Heading2"]))
+    elements.append(Paragraph("Recommended Skills to Add", styles["Heading2"]))
     elements.append(Spacer(1, 10))
-    missing_list = [ListItem(Paragraph(skill, styles["Normal"])) for skill in missing_skills]
-    elements.append(ListFlowable(missing_list, bulletType="bullet"))
+    if missing_skills:
+        missing_list = [ListItem(Paragraph(skill, styles["Normal"])) for skill in missing_skills]
+        elements.append(ListFlowable(missing_list, bulletType="bullet"))
+    else:
+        elements.append(Paragraph("No major skill gaps detected.", styles["Normal"]))
 
     elements.append(Spacer(1, 20))
 
     elements.append(Paragraph("AI Career Feedback", styles["Heading2"]))
     elements.append(Spacer(1, 10))
-    feedback_list = [ListItem(Paragraph(tip, styles["Normal"])) for tip in feedback]
-    elements.append(ListFlowable(feedback_list, bulletType="bullet"))
+    if feedback:
+        feedback_list = [ListItem(Paragraph(tip, styles["Normal"])) for tip in feedback]
+        elements.append(ListFlowable(feedback_list, bulletType="bullet"))
+    else:
+        elements.append(Paragraph("Your resume structure looks strong.", styles["Normal"]))
 
     doc.build(elements)
     buffer.seek(0)
     return buffer
 
 
-# ---------- MAIN ----------
+# ---------------- ANALYSIS ----------------
 if uploaded_file is not None:
     text = extract_text_from_pdf(uploaded_file)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.divider()
     st.subheader("📜 Resume Preview")
-    st.write(text[:1000])
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.write(text[:1200])
 
-    # Role skills
     if role == "Software Developer":
         skills = ["Python", "Java", "C++", "SQL", "Git", "HTML", "CSS", "JavaScript"]
     elif role == "Data Scientist":
@@ -130,7 +149,7 @@ if uploaded_file is not None:
     found_skills = [s for s in skills if s.lower() in text.lower()]
     missing_skills = [s for s in skills if s not in found_skills]
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.divider()
     st.subheader("🧠 Resume Analysis")
 
     st.write("### ✅ Skills Found")
@@ -138,18 +157,14 @@ if uploaded_file is not None:
 
     st.write("### ❌ Missing Skills")
     st.write(missing_skills)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Resume Score
     score = int((len(found_skills) / len(skills)) * 100)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.divider()
     st.subheader("📊 Resume Strength Score")
     st.progress(score)
     st.write(f"{score}/100")
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # ATS Score
     ats_score = 0
     if "skills" in text.lower(): ats_score += 20
     if "project" in text.lower(): ats_score += 20
@@ -157,32 +172,27 @@ if uploaded_file is not None:
     if "education" in text.lower(): ats_score += 20
     if len(text.split()) > 200: ats_score += 20
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("🤖 ATS Compatibility Score")
     st.progress(ats_score)
     st.write(f"{ats_score}/100")
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # AI Feedback
     feedback = []
     if "experience" not in text.lower():
-        feedback.append("Add an EXPERIENCE section")
+        feedback.append("Add an EXPERIENCE section.")
     if "project" not in text.lower():
-        feedback.append("Include PROJECTS")
+        feedback.append("Include PROJECTS to show practical exposure.")
     if len(found_skills) < 3:
-        feedback.append("Add more relevant SKILLS")
+        feedback.append("Add more role-relevant SKILLS.")
     if len(text.split()) < 250:
-        feedback.append("Resume content is short")
+        feedback.append("Resume content appears short.")
     if "certification" not in text.lower():
-        feedback.append("Add CERTIFICATIONS")
+        feedback.append("Add certifications to strengthen your profile.")
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.divider()
     st.subheader("🧠 AI Career Feedback")
     for tip in feedback:
         st.write("•", tip)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # JD Match
     match_score = 0
     if jd_text:
         jd_words = jd_text.lower().split()
@@ -192,14 +202,12 @@ if uploaded_file is not None:
         if len(set(jd_words)) > 0:
             match_score = int((len(common) / len(set(jd_words))) * 100)
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📊 JD Match Score")
+        st.divider()
+        st.subheader("📊 Resume vs Job Description Match Score")
         st.progress(match_score)
         st.write(f"{match_score}%")
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    # PDF Download
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.divider()
     st.subheader("📥 Download Full Analysis Report")
 
     pdf_file = generate_pdf_report(
@@ -217,4 +225,3 @@ if uploaded_file is not None:
         file_name="AI_Career_Copilot_Report.pdf",
         mime="application/pdf"
     )
-    st.markdown('</div>', unsafe_allow_html=True)
