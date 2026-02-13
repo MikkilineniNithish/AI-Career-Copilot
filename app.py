@@ -9,7 +9,7 @@ import hashlib
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
 # -----------------------------
-# FIREBASE CONNECTION (FIXED VERSION)
+# FIREBASE CONNECTION
 # -----------------------------
 if not firebase_admin._apps:
     firebase_dict = {
@@ -31,14 +31,13 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # -----------------------------
-# HELPER FUNCTIONS
+# HELPERS
 # -----------------------------
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def create_user(email, password):
-    users_ref = db.collection("users")
-    users_ref.document(email).set({
+    db.collection("users").document(email).set({
         "email": email,
         "password": hash_password(password)
     })
@@ -46,18 +45,19 @@ def create_user(email, password):
 def check_user(email, password):
     user_doc = db.collection("users").document(email).get()
     if user_doc.exists:
-        stored_password = user_doc.to_dict()["password"]
-        return stored_password == hash_password(password)
+        return user_doc.to_dict()["password"] == hash_password(password)
     return False
 
 # -----------------------------
-# SESSION STATE
+# SESSION
 # -----------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
 
 # -----------------------------
-# LOGIN / SIGNUP UI
+# LOGIN UI
 # -----------------------------
 if not st.session_state.logged_in:
 
@@ -65,7 +65,6 @@ if not st.session_state.logged_in:
     st.subheader("Login / Signup")
 
     choice = st.radio("Choose", ["Login", "Signup"])
-
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -81,17 +80,16 @@ if not st.session_state.logged_in:
         if st.button("Login"):
             if check_user(email, password):
                 st.session_state.logged_in = True
-                st.success("Login successful!")
+                st.session_state.user_email = email
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
 # -----------------------------
-# MAIN APP AFTER LOGIN
+# MAIN APP
 # -----------------------------
 else:
     st.sidebar.success("Logged in")
-
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
@@ -99,8 +97,27 @@ else:
     st.title("🎯 Welcome to AI Career Copilot")
     st.write("You are successfully logged in!")
 
+    # -----------------------------
+    # FEATURE 1: RESUME UPLOAD
+    # -----------------------------
+    st.header("📄 Upload Resume")
+
+    uploaded_file = st.file_uploader("Upload your resume (PDF)", type=["pdf"])
+
+    if uploaded_file:
+        resume_text = uploaded_file.read().decode(errors="ignore")
+
+        db.collection("resumes").document(st.session_state.user_email).set({
+            "resume_text": resume_text
+        })
+
+        st.success("Resume saved successfully!")
+
+    st.divider()
+
+    # Upcoming features
     st.header("Next Features Coming:")
-    st.write("• Resume ATS Analysis")
-    st.write("• JD Match Score")
+    st.write("• ATS Score")
+    st.write("• JD Match")
     st.write("• Career Suggestions")
-    st.write("• PDF Report Download")
+    st.write("• PDF Report")
