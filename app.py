@@ -9,23 +9,10 @@ import hashlib
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
 # -----------------------------
-# FIREBASE CONNECTION (FIXED VERSION)
+# FIREBASE CONNECTION
 # -----------------------------
 if not firebase_admin._apps:
-    firebase_dict = {
-        "type": st.secrets["firebase"]["type"],
-        "project_id": st.secrets["firebase"]["project_id"],
-        "private_key_id": st.secrets["firebase"]["private_key_id"],
-        "private_key": st.secrets["firebase"]["private_key"],
-        "client_email": st.secrets["firebase"]["client_email"],
-        "client_id": st.secrets["firebase"]["client_id"],
-        "auth_uri": st.secrets["firebase"]["auth_uri"],
-        "token_uri": st.secrets["firebase"]["token_uri"],
-        "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
-    }
-
-    cred = credentials.Certificate(firebase_dict)
+    cred = credentials.Certificate(dict(st.secrets["firebase"]))
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
@@ -81,6 +68,7 @@ if not st.session_state.logged_in:
         if st.button("Login"):
             if check_user(email, password):
                 st.session_state.logged_in = True
+                st.session_state.user_email = email
                 st.success("Login successful!")
                 st.rerun()
             else:
@@ -91,7 +79,6 @@ if not st.session_state.logged_in:
 # -----------------------------
 else:
     st.sidebar.success("Logged in")
-
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
@@ -99,6 +86,27 @@ else:
     st.title("🎯 Welcome to AI Career Copilot")
     st.write("You are successfully logged in!")
 
+    # -----------------------------
+    # RESUME UPLOAD SECTION
+    # -----------------------------
+    st.header("📄 Upload Resume")
+
+    uploaded_file = st.file_uploader("Upload your Resume (PDF)", type=["pdf"])
+
+    if uploaded_file:
+        st.success("Resume uploaded successfully!")
+
+        # Save info to Firestore
+        db.collection("resumes").add({
+            "email": st.session_state.user_email,
+            "filename": uploaded_file.name
+        })
+
+        st.write("Uploaded File:", uploaded_file.name)
+
+    # -----------------------------
+    # UPCOMING FEATURES
+    # -----------------------------
     st.header("Next Features Coming:")
     st.write("• Resume ATS Analysis")
     st.write("• JD Match Score")
