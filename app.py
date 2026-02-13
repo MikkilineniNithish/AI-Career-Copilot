@@ -104,4 +104,3 @@ else:
     st.write("• JD Match Score")
     st.write("• Career Suggestions")
     st.write("• PDF Report Download")
-    
