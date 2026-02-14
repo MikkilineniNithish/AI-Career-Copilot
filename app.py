@@ -2,15 +2,11 @@ import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
 import hashlib
+import PyPDF2
 
-# -----------------------------
-# PAGE CONFIG
-# -----------------------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
-# -----------------------------
-# FIREBASE CONNECTION
-# -----------------------------
+# ---------------- FIREBASE ----------------
 if not firebase_admin._apps:
     firebase_dict = {
         "type": st.secrets["firebase"]["type"],
@@ -30,9 +26,7 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# -----------------------------
-# HELPERS
-# -----------------------------
+# ---------------- FUNCTIONS ----------------
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -48,76 +42,103 @@ def check_user(email, password):
         return user_doc.to_dict()["password"] == hash_password(password)
     return False
 
-# -----------------------------
-# SESSION
-# -----------------------------
+def extract_text(file):
+    reader = PyPDF2.PdfReader(file)
+    text = ""
+    for page in reader.pages:
+        if page.extract_text():
+            text += page.extract_text()
+    return text
+
+# ---------------- SESSION ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
 
-# -----------------------------
-# LOGIN UI
-# -----------------------------
+# ---------------- LOGIN ----------------
 if not st.session_state.logged_in:
 
     st.title("🚀 AI Career Copilot")
-    st.subheader("Login / Signup")
-
     choice = st.radio("Choose", ["Login", "Signup"])
+
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if choice == "Signup":
         if st.button("Create Account"):
-            if email and password:
-                create_user(email, password)
-                st.success("Account created! Now login.")
-            else:
-                st.error("Enter all details")
+            create_user(email, password)
+            st.success("Account created!")
 
-    else:
+    if choice == "Login":
         if st.button("Login"):
             if check_user(email, password):
                 st.session_state.logged_in = True
-                st.session_state.user_email = email
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
-# -----------------------------
-# MAIN APP
-# -----------------------------
+# ---------------- MAIN ----------------
 else:
+
     st.sidebar.success("Logged in")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🎯 Welcome to AI Career Copilot")
-    st.write("You are successfully logged in!")
+    st.title("🤖 AI Career Copilot")
 
-    # -----------------------------
-    # FEATURE 1: RESUME UPLOAD
-    # -----------------------------
-    st.header("📄 Upload Resume")
+    role = st.selectbox(
+        "Select Target Role",
+        ["Software Developer", "Data Scientist", "Cloud Engineer"]
+    )
 
-    uploaded_file = st.file_uploader("Upload your resume (PDF)", type=["pdf"])
+    uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
+    jd_text = st.text_area("Paste Job Description (Optional)")
 
     if uploaded_file:
-        resume_text = uploaded_file.read().decode(errors="ignore")
-
-        db.collection("resumes").document(st.session_state.user_email).set({
-            "resume_text": resume_text
-        })
+        text = extract_text(uploaded_file)
 
         st.success("Resume saved successfully!")
 
-    st.divider()
+        if role == "Software Developer":
+            skills = ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"]
+        elif role == "Data Scientist":
+            skills = ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"]
+        else:
+            skills = ["AWS", "Linux", "Docker", "Cloud", "Python"]
 
-    # Upcoming features
-    st.header("Next Features Coming:")
-    st.write("• ATS Score")
-    st.write("• JD Match")
-    st.write("• Career Suggestions")
-    st.write("• PDF Report")
+        found = [s for s in skills if s.lower() in text.lower()]
+        missing = [s for s in skills if s not in found]
+
+        resume_score = int((len(found)/len(skills))*100)
+
+        ats_score = 0
+        if "skills" in text.lower(): ats_score += 20
+        if "project" in text.lower(): ats_score += 20
+        if "experience" in text.lower(): ats_score += 20
+        if "education" in text.lower(): ats_score += 20
+        if len(text.split()) > 200: ats_score += 20
+
+        match_score = 0
+        if jd_text:
+            jd_words = jd_text.lower().split()
+            resume_words = text.lower().split()
+            common = set(jd_words).intersection(set(resume_words))
+            if len(jd_words) > 0:
+                match_score = int((len(common)/len(jd_words))*100)
+
+        st.subheader("📊 Resume Skill Score")
+        st.progress(resume_score)
+
+        st.subheader("🤖 ATS Score")
+        st.progress(ats_score)
+
+        if jd_text:
+            st.subheader("🎯 JD Match Score")
+            st.progress(match_score)
+
+        st.subheader("✅ Skills Found")
+        st.write(found)
+
+        st.subheader("❌ Missing Skills")
+        st.write(missing)
+
