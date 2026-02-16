@@ -173,7 +173,7 @@ else:
         st.subheader("❌ Missing Skills")
         st.write(missing_skills)
 
-        # ---------------- AI SUGGESTIONS ----------------
+        # ---------------- AI CAREER SUGGESTIONS ----------------
         st.subheader("🤖 Career Suggestions")
 
         if missing_skills:
@@ -187,6 +187,56 @@ Build projects using these skills and update your resume.
             suggestion_text = "Great! Your resume already matches the role well."
 
         st.info(suggestion_text)
+
+        # ---------------- PROJECT SUGGESTIONS (NEW FEATURE) ----------------
+        st.subheader("🚀 Suggested Projects To Build")
+
+        project_map = {
+            "Python": [
+                "Student Management System using Python",
+                "AI Chatbot using Python",
+                "Automation Script for File Organizer"
+            ],
+            "SQL": [
+                "Library Database Management System",
+                "E-commerce Backend using SQL"
+            ],
+            "Java": [
+                "Online Banking Application",
+                "Spring Boot REST API Project"
+            ],
+            "AWS": [
+                "Deploy Website using EC2 + S3",
+                "Serverless App using Lambda"
+            ],
+            "Docker": [
+                "Containerize Flask Application",
+                "Dockerize Node.js Project"
+            ],
+            "Machine Learning": [
+                "House Price Prediction Model",
+                "Spam Email Classifier"
+            ],
+            "Pandas": [
+                "Data Analysis Dashboard",
+                "Sales Data Insights Project"
+            ],
+            "Linux": [
+                "Shell Script Automation Tool",
+                "Log Monitoring System"
+            ]
+        }
+
+        suggested_projects = []
+        for skill in missing_skills:
+            if skill in project_map:
+                suggested_projects.extend(project_map[skill])
+
+        if suggested_projects:
+            for proj in suggested_projects[:6]:
+                st.write("•", proj)
+        else:
+            st.write("🔥 Your skill set is strong. Start applying for jobs!")
 
     # ---------------- PAST ANALYSIS DASHBOARD ----------------
     st.divider()
