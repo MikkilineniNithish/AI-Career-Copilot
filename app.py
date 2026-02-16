@@ -166,25 +166,25 @@ else:
             st.subheader("🎯 JD Match Score")
             st.progress(match_score)
             st.write(match_score)
-            # ---------------- RESUME STRENGTH LEVEL ----------------
-st.subheader("🏆 Resume Strength Level")
 
-average_score = score
-if jd_text:
-    average_score = int((score + ats_score + match_score) / 3)
-else:
-    average_score = int((score + ats_score) / 2)
+        # ---------------- RESUME STRENGTH LEVEL ----------------
+        st.subheader("🏆 Resume Strength Level")
 
-if average_score < 50:
-    level = "🔴 Beginner Level"
-elif average_score < 75:
-    level = "🟡 Intermediate Level"
-else:
-    level = "🟢 Strong Candidate"
+        average_score = score
+        if jd_text:
+            average_score = int((score + ats_score + match_score) / 3)
+        else:
+            average_score = int((score + ats_score) / 2)
 
-st.metric("Overall Performance", f"{average_score}%")
-st.success(f"Current Level: {level}")
+        if average_score < 50:
+            level = "🔴 Beginner Level"
+        elif average_score < 75:
+            level = "🟡 Intermediate Level"
+        else:
+            level = "🟢 Strong Candidate"
 
+        st.metric("Overall Performance", f"{average_score}%")
+        st.success(f"Current Level: {level}")
 
         st.subheader("✅ Skills Found")
         st.write(found_skills)
@@ -192,7 +192,7 @@ st.success(f"Current Level: {level}")
         st.subheader("❌ Missing Skills")
         st.write(missing_skills)
 
-        # ---------------- AI CAREER SUGGESTIONS ----------------
+        # ---------------- CAREER SUGGESTIONS ----------------
         st.subheader("🤖 Career Suggestions")
 
         if missing_skills:
@@ -207,7 +207,7 @@ Build projects using these skills and update your resume.
 
         st.info(suggestion_text)
 
-        # ---------------- PROJECT SUGGESTIONS (NEW FEATURE) ----------------
+        # ---------------- PROJECT SUGGESTIONS ----------------
         st.subheader("🚀 Suggested Projects To Build")
 
         project_map = {
@@ -257,7 +257,7 @@ Build projects using these skills and update your resume.
         else:
             st.write("🔥 Your skill set is strong. Start applying for jobs!")
 
-    # ---------------- PAST ANALYSIS DASHBOARD ----------------
+    # ---------------- HISTORY DASHBOARD ----------------
     st.divider()
     st.subheader("📈 Past Analysis History")
 
