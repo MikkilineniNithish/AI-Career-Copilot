@@ -166,6 +166,25 @@ else:
             st.subheader("🎯 JD Match Score")
             st.progress(match_score)
             st.write(match_score)
+            # ---------------- RESUME STRENGTH LEVEL ----------------
+st.subheader("🏆 Resume Strength Level")
+
+average_score = score
+if jd_text:
+    average_score = int((score + ats_score + match_score) / 3)
+else:
+    average_score = int((score + ats_score) / 2)
+
+if average_score < 50:
+    level = "🔴 Beginner Level"
+elif average_score < 75:
+    level = "🟡 Intermediate Level"
+else:
+    level = "🟢 Strong Candidate"
+
+st.metric("Overall Performance", f"{average_score}%")
+st.success(f"Current Level: {level}")
+
 
         st.subheader("✅ Skills Found")
         st.write(found_skills)
