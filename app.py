@@ -3,6 +3,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import hashlib
 import PyPDF2
+import datetime
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
@@ -58,6 +59,9 @@ def extract_text_from_pdf(file):
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
+
 # ---------------- LOGIN UI ----------------
 if not st.session_state.logged_in:
 
@@ -78,6 +82,7 @@ if not st.session_state.logged_in:
         if st.button("Login"):
             if check_user(email, password):
                 st.session_state.logged_in = True
+                st.session_state.user_email = email   # ⭐ IMPORTANT FIX
                 st.rerun()
             else:
                 st.error("Invalid credentials")
@@ -85,7 +90,7 @@ if not st.session_state.logged_in:
 # ---------------- MAIN APP ----------------
 else:
 
-    st.sidebar.success("Logged in")
+    st.sidebar.success(f"Logged in as {st.session_state.user_email}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
@@ -103,13 +108,11 @@ else:
     if uploaded_file:
         text = extract_text_from_pdf(uploaded_file)
 
-        # Save resume to Firebase
+        # ---------------- SAVE RESUME TEXT ----------------
         db.collection("resumes").add({
-            "email": email,
+            "email": st.session_state.user_email,
             "resume_text": text
         })
-
-        st.success("Resume saved successfully")
 
         # ---------------- SKILLS ----------------
         if role == "Software Developer":
@@ -132,7 +135,7 @@ else:
         if "education" in text.lower(): ats_score += 20
         if len(text.split()) > 200: ats_score += 20
 
-        # JD MATCH
+        # ---------------- JD MATCH ----------------
         match_score = 0
         if jd_text:
             jd_words = jd_text.lower().split()
@@ -141,8 +144,24 @@ else:
             if len(jd_words) > 0:
                 match_score = int((len(common)/len(jd_words))*100)
 
+        # ---------------- SAVE HISTORY (NEW FEATURE) ----------------
+        db.collection("users") \
+            .document(st.session_state.user_email) \
+            .collection("history") \
+            .add({
+                "role": role,
+                "skill_score": score,
+                "ats_score": ats_score,
+                "jd_score": match_score,
+                "skills_found": found_skills,
+                "skills_missing": missing_skills,
+                "timestamp": datetime.datetime.utcnow()
+            })
+
+        st.success("Resume analyzed & saved!")
+
         # ---------------- DISPLAY ----------------
-        st.subheader("📊 Resume Score")
+        st.subheader("📊 Resume Skill Score")
         st.progress(score)
         st.write(score)
 
