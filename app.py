@@ -82,7 +82,7 @@ if not st.session_state.logged_in:
         if st.button("Login"):
             if check_user(email, password):
                 st.session_state.logged_in = True
-                st.session_state.user_email = email   # ⭐ IMPORTANT FIX
+                st.session_state.user_email = email
                 st.rerun()
             else:
                 st.error("Invalid credentials")
@@ -108,12 +108,6 @@ else:
     if uploaded_file:
         text = extract_text_from_pdf(uploaded_file)
 
-        # ---------------- SAVE RESUME TEXT ----------------
-        db.collection("resumes").add({
-            "email": st.session_state.user_email,
-            "resume_text": text
-        })
-
         # ---------------- SKILLS ----------------
         if role == "Software Developer":
             skills = ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"]
@@ -135,7 +129,6 @@ else:
         if "education" in text.lower(): ats_score += 20
         if len(text.split()) > 200: ats_score += 20
 
-        # ---------------- JD MATCH ----------------
         match_score = 0
         if jd_text:
             jd_words = jd_text.lower().split()
@@ -144,7 +137,7 @@ else:
             if len(jd_words) > 0:
                 match_score = int((len(common)/len(jd_words))*100)
 
-        # ---------------- SAVE HISTORY (NEW FEATURE) ----------------
+        # ---------------- SAVE HISTORY ----------------
         db.collection("users") \
             .document(st.session_state.user_email) \
             .collection("history") \
@@ -179,3 +172,36 @@ else:
 
         st.subheader("❌ Missing Skills")
         st.write(missing_skills)
+
+        # ---------------- AI SUGGESTIONS ----------------
+        st.subheader("🤖 Career Suggestions")
+
+        if missing_skills:
+            suggestion_text = f"""
+To improve your profile for the role of {role}, focus on learning:
+{', '.join(missing_skills)}.
+
+Build projects using these skills and update your resume.
+"""
+        else:
+            suggestion_text = "Great! Your resume already matches the role well."
+
+        st.info(suggestion_text)
+
+    # ---------------- PAST ANALYSIS DASHBOARD ----------------
+    st.divider()
+    st.subheader("📈 Past Analysis History")
+
+    history_docs = db.collection("users") \
+        .document(st.session_state.user_email) \
+        .collection("history") \
+        .stream()
+
+    for doc in history_docs:
+        data = doc.to_dict()
+        st.write("Role:", data["role"])
+        st.write("Skill Score:", data["skill_score"])
+        st.write("ATS Score:", data["ats_score"])
+        st.write("JD Score:", data["jd_score"])
+        st.write("Time:", data["timestamp"])
+        st.write("---")
