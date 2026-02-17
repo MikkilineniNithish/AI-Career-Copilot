@@ -1,248 +1,209 @@
 import streamlit as st
-import firebase_admin
-from firebase_admin import credentials, firestore
-import hashlib
-import PyPDF2
 from fpdf import FPDF
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
-# ---------------- FIREBASE CONNECT ----------------
-if not firebase_admin._apps:
-    cred = credentials.Certificate(dict(st.secrets["firebase"]))
-    firebase_admin.initialize_app(cred)
+# ----------------------------
+# SESSION STATE INITIALIZATION
+# ----------------------------
+if "admin_logged_in" not in st.session_state:
+    st.session_state.admin_logged_in = False
 
-db = firestore.client()
+if "total_users" not in st.session_state:
+    st.session_state.total_users = 0
 
-# ---------------- PASSWORD HASH ----------------
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+if "total_reports" not in st.session_state:
+    st.session_state.total_reports = 0
 
-def create_user(email, password):
-    db.collection("users").document(email).set({
-        "email": email,
-        "password": hash_password(password)
-    })
+if "beginner_count" not in st.session_state:
+    st.session_state.beginner_count = 0
 
-def check_user(email, password):
-    user_doc = db.collection("users").document(email).get()
-    if user_doc.exists:
-        return user_doc.to_dict()["password"] == hash_password(password)
-    return False
+if "intermediate_count" not in st.session_state:
+    st.session_state.intermediate_count = 0
 
-# ---------------- PDF TEXT EXTRACT ----------------
-def extract_text_from_pdf(file):
-    text = ""
-    reader = PyPDF2.PdfReader(file)
-    for page in reader.pages:
-        if page.extract_text():
-            text += page.extract_text()
-    return text
+if "strong_count" not in st.session_state:
+    st.session_state.strong_count = 0
 
-# ---------------- CREATE PDF REPORT ----------------
-def generate_pdf(role, score, ats_score, match_score, level, roadmap, projects):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
 
-    pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True, align="C")
-    pdf.ln(5)
+# ----------------------------
+# SIDEBAR MENU
+# ----------------------------
+menu = st.sidebar.radio(
+    "Navigation",
+    ["Home", "Generate Roadmap", "Admin Dashboard"]
+)
 
-    pdf.cell(200, 10, txt=f"Role: {role}", ln=True)
-    pdf.cell(200, 10, txt=f"Skill Score: {score}%", ln=True)
-    pdf.cell(200, 10, txt=f"ATS Score: {ats_score}%", ln=True)
-    pdf.cell(200, 10, txt=f"JD Match Score: {match_score}%", ln=True)
-    pdf.cell(200, 10, txt=f"Level: {level}", ln=True)
-
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Learning Roadmap:", ln=True)
-    for step in roadmap:
-        pdf.multi_cell(0, 8, txt=f"- {step}")
-
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Suggested Projects:", ln=True)
-    for proj in projects:
-        pdf.multi_cell(0, 8, txt=f"- {proj}")
-
-    return pdf.output(dest="S").encode("latin-1")
-
-# ---------------- SESSION ----------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
-
-# ---------------- LOGIN PAGE ----------------
-if not st.session_state.logged_in:
-
+# ----------------------------
+# HOME PAGE
+# ----------------------------
+if menu == "Home":
     st.title("🚀 AI Career Copilot")
-    st.subheader("Login / Signup")
+    st.write("Generate Personalized Roadmap + Suggested Projects")
+    st.success("Build your career like a Strong Candidate 🔥")
 
-    choice = st.radio("Choose", ["Login", "Signup"])
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
 
-    if choice == "Signup":
-        if st.button("Create Account"):
-            create_user(email, password)
-            st.success("Account created! Now login.")
+# ----------------------------
+# GENERATE ROADMAP
+# ----------------------------
+elif menu == "Generate Roadmap":
 
-    if choice == "Login":
-        if st.button("Login"):
-            if check_user(email, password):
-                st.session_state.logged_in = True
-                st.session_state.user_email = email
-                st.rerun()
-            else:
-                st.error("Invalid credentials")
+    st.title("📌 Personalized Learning Roadmap")
 
-# ---------------- MAIN APP ----------------
-else:
-
-    st.sidebar.success(f"Logged in as {st.session_state.user_email}")
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-    st.title("🤖 AI Career Copilot")
-    st.caption("Your personal AI career growth assistant")
-
-    role = st.selectbox(
-        "🎯 Select Target Role",
-        ["Software Developer", "Data Scientist", "Cloud Engineer"]
+    name = st.text_input("Enter Your Name")
+    domain = st.selectbox(
+        "Select Your Domain",
+        ["AI/ML", "Web Development", "Cloud", "Data Science"]
     )
 
-    uploaded_file = st.file_uploader("📄 Upload Resume", type=["pdf"])
-    jd_text = st.text_area("Paste Job Description (Optional)")
+    skill_level = st.selectbox(
+        "Select Your Current Level",
+        ["Beginner", "Intermediate", "Strong"]
+    )
 
-    if uploaded_file:
+    if st.button("Generate Roadmap"):
 
-        text = extract_text_from_pdf(uploaded_file)
+        st.session_state.total_users += 1
+        st.session_state.total_reports += 1
 
-        # ---------------- SKILLS ----------------
-        role_skills = {
-            "Software Developer": ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"],
-            "Data Scientist": ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"],
-            "Cloud Engineer": ["AWS", "Cloud", "Linux", "Docker", "Python"]
-        }
-
-        skills = role_skills[role]
-        found_skills = [s for s in skills if s.lower() in text.lower()]
-        missing_skills = [s for s in skills if s not in found_skills]
-
-        score = int((len(found_skills) / len(skills)) * 100)
-
-        # ---------------- ATS SCORE ----------------
-        ats_score = 0
-        for word in ["skills", "project", "experience", "education"]:
-            if word in text.lower():
-                ats_score += 20
-        if len(text.split()) > 200:
-            ats_score += 20
-
-        # ---------------- JD MATCH ----------------
-        match_score = 0
-        if jd_text:
-            jd_words = set(jd_text.lower().split())
-            resume_words = set(text.lower().split())
-            if len(jd_words) > 0:
-                match_score = int((len(jd_words.intersection(resume_words)) / len(jd_words)) * 100)
-
-        # ---------------- SCORES UI ----------------
-        st.subheader("📊 Resume Analysis")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Skill Score", f"{score}%")
-        col2.metric("ATS Score", f"{ats_score}%")
-        col3.metric("JD Match", f"{match_score}%")
-
-        # ---------------- LEVEL ----------------
-        avg = (score + ats_score + match_score) / 3 if jd_text else (score + ats_score) / 2
-
-        if avg < 50:
-            level = "Beginner"
-            st.error("🔴 Beginner Level")
-        elif avg < 75:
-            level = "Intermediate"
-            st.warning("🟡 Intermediate Level")
+        # Track level count
+        if skill_level == "Beginner":
+            st.session_state.beginner_count += 1
+            level_color = "🟢 Beginner"
+        elif skill_level == "Intermediate":
+            st.session_state.intermediate_count += 1
+            level_color = "🟡 Intermediate"
         else:
-            level = "Strong Candidate"
-            st.success("🟢 Strong Candidate")
+            st.session_state.strong_count += 1
+            level_color = "🔴 Strong Candidate"
 
-        # ---------------- ROADMAP ----------------
-        st.subheader("🧭 Personalized Learning Roadmap")
+        st.success(f"Roadmap Generated for {name}")
+        st.markdown(f"### Level: {level_color}")
 
-        roadmap_map = {
-            "Software Developer": [
-                "Master DSA",
-                "Build 5 Full Stack Projects",
-                "Learn System Design",
-                "Practice Coding Interviews"
-            ],
-            "Data Scientist": [
-                "Advanced Machine Learning",
-                "Deep Learning Projects",
-                "Deploy ML Models",
-                "Build Portfolio"
-            ],
-            "Cloud Engineer": [
-                "Master AWS Core Services",
-                "Learn CI/CD Pipelines",
-                "Deploy Real Apps",
-                "Get AWS Certification"
+        # ---------------- ROADMAP + PROJECTS ----------------
+        if domain == "AI/ML":
+            roadmap = """
+1. Python Basics
+2. Numpy & Pandas
+3. Machine Learning Algorithms
+4. Deep Learning
+5. Build Real-world AI Projects
+"""
+            projects = [
+                "Face Recognition Attendance System",
+                "AI Resume Analyzer",
+                "Deepfake Detection App"
             ]
-        }
 
-        roadmap = roadmap_map[role]
-        for step in roadmap:
-            st.write("•", step)
-
-        # ---------------- PROJECT SUGGESTIONS (ALWAYS SHOW) ----------------
-        st.subheader("🚀 Suggested Projects")
-
-        learning_projects = [
-            "Resume Analyzer using Python",
-            "Portfolio Website",
-            "Automation Script",
-            "REST API Project"
-        ]
-
-        advanced_projects = {
-            "Software Developer": [
-                "Full Stack E-commerce Platform",
-                "Microservices App",
-                "Real-time Chat Application"
-            ],
-            "Data Scientist": [
-                "End-to-End ML Pipeline",
-                "Stock Price Predictor",
-                "AI Recommendation System"
-            ],
-            "Cloud Engineer": [
-                "AWS 3-Tier Architecture",
-                "Serverless App with Lambda",
-                "CI/CD Deployment Pipeline"
+        elif domain == "Web Development":
+            roadmap = """
+1. HTML, CSS
+2. JavaScript
+3. React
+4. Backend (Node/Django)
+5. Deploy Full Stack App
+"""
+            projects = [
+                "Portfolio Website",
+                "E-commerce App",
+                "Admin Dashboard System"
             ]
-        }
 
-        if missing_skills:
-            suggested_projects = learning_projects
+        elif domain == "Cloud":
+            roadmap = """
+1. Linux Basics
+2. Networking
+3. AWS Core Services
+4. Docker
+5. CI/CD Deployment
+"""
+            projects = [
+                "AWS EC2 Deployment",
+                "Cloud Monitoring Dashboard",
+                "Cost Optimization Tracker"
+            ]
+
         else:
-            suggested_projects = advanced_projects[role]
+            roadmap = """
+1. Python
+2. SQL
+3. Pandas
+4. Data Visualization
+5. Build Analytics Dashboard
+"""
+            projects = [
+                "Sales Analytics Dashboard",
+                "Stock Market Analyzer",
+                "Student Performance Tracker"
+            ]
 
-        for proj in suggested_projects:
-            st.write("•", proj)
+        st.subheader("📚 Learning Roadmap")
+        st.text(roadmap)
 
-        # ---------------- PDF DOWNLOAD ----------------
-        st.subheader("📄 Download PDF Report")
+        st.subheader("💡 Suggested Projects")
+        for p in projects:
+            st.write("✅", p)
 
-        pdf_data = generate_pdf(role, score, ats_score, match_score, level, roadmap, suggested_projects)
+        # ---------------- PDF GENERATION ----------------
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
 
-        st.download_button(
-            label="Download Career Report",
-            data=pdf_data,
-            file_name="career_report.pdf",
-            mime="application/pdf"
+        pdf.multi_cell(
+            0, 8,
+            f"AI Career Copilot Report\n\n"
+            f"Name: {name}\n"
+            f"Level: {skill_level}\n"
+            f"Domain: {domain}\n\n"
+            f"Roadmap:\n{roadmap}"
         )
+
+        pdf.output("roadmap.pdf")
+
+        with open("roadmap.pdf", "rb") as f:
+            st.download_button(
+                "📄 Download PDF Report",
+                f,
+                file_name="roadmap.pdf"
+            )
+
+
+# ----------------------------
+# ADMIN DASHBOARD
+# ----------------------------
+elif menu == "Admin Dashboard":
+
+    if not st.session_state.admin_logged_in:
+
+        st.title("🔐 Admin Login")
+
+        email = st.text_input("Admin Email")
+        password = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            if email == "copilotaicareer@gmail.com" and password == "admin123":
+                st.session_state.admin_logged_in = True
+                st.success("Login Successful ✅")
+            else:
+                st.error("Invalid Credentials ❌")
+
+    else:
+        st.title("📊 Admin Dashboard")
+
+        col1, col2 = st.columns(2)
+        col1.metric("Total Users", st.session_state.total_users)
+        col2.metric("Total Reports", st.session_state.total_reports)
+
+        st.markdown("---")
+
+        st.subheader("👨‍💻 Candidate Level Distribution")
+
+        st.write("🟢 Beginner:", st.session_state.beginner_count)
+        st.write("🟡 Intermediate:", st.session_state.intermediate_count)
+        st.write("🔴 Strong:", st.session_state.strong_count)
+
+        st.markdown("---")
+        st.success("🟢 Website Status: Running")
+
+        if st.button("Logout"):
+            st.session_state.admin_logged_in = False
+            st.success("Logged Out Successfully")
