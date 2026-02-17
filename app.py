@@ -191,6 +191,37 @@ else:
 
         st.subheader("❌ Missing Skills")
         st.write(missing_skills)
+        # ---------------- AI LEARNING ROADMAP ----------------
+        st.subheader("🧭 Personalized Learning Roadmap")
+
+        roadmap = []
+        
+        if role == "Software Developer":
+            roadmap = [
+                "Step 1: Strengthen Programming (Python/Java)",
+                "Step 2: Learn Data Structures & Algorithms",
+                "Step 3: Build 3–5 Real Projects",
+                "Step 4: Learn Git & System Design Basics",
+                "Step 5: Start Applying for SDE Roles"
+                ]
+        elif role == "Data Scientist":
+            roadmap = [
+                "Step 1: Master Python & Pandas",
+                "Step 2: Learn Statistics & Probability",
+                "Step 3: Practice Machine Learning Models",
+                "Step 4: Build Data Projects",
+                "Step 5: Apply for Data Roles"
+                ]
+        elif role == "Cloud Engineer":
+            roadmap = [
+                "Step 1: Learn Linux Basics",
+                "Step 2: Learn AWS Core Services",
+                "Step 3: Practice Docker & Deployment",
+                "Step 4: Build Cloud Projects",
+                "Step 5: Get AWS Certification"
+                ]
+            for step in roadmap:
+                st.write("•", step)
 
         # ---------------- CAREER SUGGESTIONS ----------------
         st.subheader("🤖 Career Suggestions")
