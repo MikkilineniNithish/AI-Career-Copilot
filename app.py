@@ -3,7 +3,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import hashlib
 import PyPDF2
-import datetime
 from fpdf import FPDF
 
 # ---------------- PAGE CONFIG ----------------
@@ -50,7 +49,7 @@ def generate_pdf(role, score, ats_score, match_score, level, roadmap, projects):
     pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True, align="C")
     pdf.ln(5)
 
-    pdf.cell(200, 10, txt=f"Target Role: {role}", ln=True)
+    pdf.cell(200, 10, txt=f"Role: {role}", ln=True)
     pdf.cell(200, 10, txt=f"Skill Score: {score}%", ln=True)
     pdf.cell(200, 10, txt=f"ATS Score: {ats_score}%", ln=True)
     pdf.cell(200, 10, txt=f"JD Match Score: {match_score}%", ln=True)
@@ -75,10 +74,12 @@ if "logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# ---------------- LOGIN ----------------
+# ---------------- LOGIN PAGE ----------------
 if not st.session_state.logged_in:
 
     st.title("🚀 AI Career Copilot")
+    st.subheader("Login / Signup")
+
     choice = st.radio("Choose", ["Login", "Signup"])
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
@@ -86,7 +87,7 @@ if not st.session_state.logged_in:
     if choice == "Signup":
         if st.button("Create Account"):
             create_user(email, password)
-            st.success("Account created! Login now.")
+            st.success("Account created! Now login.")
 
     if choice == "Login":
         if st.button("Login"):
@@ -106,13 +107,14 @@ else:
         st.rerun()
 
     st.title("🤖 AI Career Copilot")
+    st.caption("Your personal AI career growth assistant")
 
     role = st.selectbox(
-        "Select Target Role",
+        "🎯 Select Target Role",
         ["Software Developer", "Data Scientist", "Cloud Engineer"]
     )
 
-    uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
+    uploaded_file = st.file_uploader("📄 Upload Resume", type=["pdf"])
     jd_text = st.text_area("Paste Job Description (Optional)")
 
     if uploaded_file:
@@ -127,13 +129,12 @@ else:
         }
 
         skills = role_skills[role]
-
         found_skills = [s for s in skills if s.lower() in text.lower()]
         missing_skills = [s for s in skills if s not in found_skills]
 
         score = int((len(found_skills) / len(skills)) * 100)
 
-        # ATS SCORE
+        # ---------------- ATS SCORE ----------------
         ats_score = 0
         for word in ["skills", "project", "experience", "education"]:
             if word in text.lower():
@@ -141,7 +142,7 @@ else:
         if len(text.split()) > 200:
             ats_score += 20
 
-        # JD MATCH
+        # ---------------- JD MATCH ----------------
         match_score = 0
         if jd_text:
             jd_words = set(jd_text.lower().split())
@@ -149,21 +150,15 @@ else:
             if len(jd_words) > 0:
                 match_score = int((len(jd_words.intersection(resume_words)) / len(jd_words)) * 100)
 
-        # ---------------- DISPLAY SCORES ----------------
-        st.subheader("📊 Resume Skill Score")
-        st.progress(score)
-        st.write(f"{score}%")
+        # ---------------- SCORES UI ----------------
+        st.subheader("📊 Resume Analysis")
 
-        st.subheader("🤖 ATS Score")
-        st.progress(ats_score)
-        st.write(f"{ats_score}%")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Skill Score", f"{score}%")
+        col2.metric("ATS Score", f"{ats_score}%")
+        col3.metric("JD Match", f"{match_score}%")
 
-        if jd_text:
-            st.subheader("🎯 JD Match Score")
-            st.progress(match_score)
-            st.write(f"{match_score}%")
-
-        # ---------------- OVERALL LEVEL ----------------
+        # ---------------- LEVEL ----------------
         avg = (score + ats_score + match_score) / 3 if jd_text else (score + ats_score) / 2
 
         if avg < 50:
@@ -182,23 +177,20 @@ else:
         roadmap_map = {
             "Software Developer": [
                 "Master DSA",
-                "Build Full Stack Projects",
+                "Build 5 Full Stack Projects",
                 "Learn System Design",
-                "Contribute to Open Source",
-                "Practice Mock Interviews"
+                "Practice Coding Interviews"
             ],
             "Data Scientist": [
-                "Advanced ML & Deep Learning",
-                "Work on Real Datasets",
+                "Advanced Machine Learning",
+                "Deep Learning Projects",
                 "Deploy ML Models",
-                "Participate in Kaggle",
                 "Build Portfolio"
             ],
             "Cloud Engineer": [
                 "Master AWS Core Services",
-                "Learn CI/CD",
-                "Infrastructure as Code",
-                "Deploy Real Projects",
+                "Learn CI/CD Pipelines",
+                "Deploy Real Apps",
                 "Get AWS Certification"
             ]
         }
@@ -207,40 +199,36 @@ else:
         for step in roadmap:
             st.write("•", step)
 
-        # ---------------- PROJECT SUGGESTIONS ----------------
+        # ---------------- PROJECT SUGGESTIONS (ALWAYS SHOW) ----------------
         st.subheader("🚀 Suggested Projects")
+
+        learning_projects = [
+            "Resume Analyzer using Python",
+            "Portfolio Website",
+            "Automation Script",
+            "REST API Project"
+        ]
 
         advanced_projects = {
             "Software Developer": [
                 "Full Stack E-commerce Platform",
-                "Scalable Chat Application",
-                "Microservices Architecture Project"
+                "Microservices App",
+                "Real-time Chat Application"
             ],
             "Data Scientist": [
-                "End-to-End ML Deployment",
-                "Stock Prediction System",
-                "AI Recommendation Engine"
+                "End-to-End ML Pipeline",
+                "Stock Price Predictor",
+                "AI Recommendation System"
             ],
             "Cloud Engineer": [
-                "Multi-tier AWS Deployment",
-                "Serverless Web App",
-                "CI/CD Pipeline on AWS"
+                "AWS 3-Tier Architecture",
+                "Serverless App with Lambda",
+                "CI/CD Deployment Pipeline"
             ]
         }
 
-        learning_projects = {
-            "Python": ["Automation Script", "Mini AI Chatbot"],
-            "AWS": ["Deploy Website on EC2"],
-            "Docker": ["Dockerize Flask App"],
-            "Machine Learning": ["Spam Classifier"]
-        }
-
-        suggested_projects = []
-
         if missing_skills:
-            for skill in missing_skills:
-                if skill in learning_projects:
-                    suggested_projects.extend(learning_projects[skill])
+            suggested_projects = learning_projects
         else:
             suggested_projects = advanced_projects[role]
 
@@ -253,7 +241,7 @@ else:
         pdf_data = generate_pdf(role, score, ats_score, match_score, level, roadmap, suggested_projects)
 
         st.download_button(
-            label="Download Report",
+            label="Download Career Report",
             data=pdf_data,
             file_name="career_report.pdf",
             mime="application/pdf"
