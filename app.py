@@ -6,24 +6,12 @@ import PyPDF2
 import datetime
 from fpdf import FPDF
 
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
 # ---------------- FIREBASE CONNECT ----------------
 if not firebase_admin._apps:
-    firebase_dict = {
-        "type": st.secrets["firebase"]["type"],
-        "project_id": st.secrets["firebase"]["project_id"],
-        "private_key_id": st.secrets["firebase"]["private_key_id"],
-        "private_key": st.secrets["firebase"]["private_key"],
-        "client_email": st.secrets["firebase"]["client_email"],
-        "client_id": st.secrets["firebase"]["client_id"],
-        "auth_uri": st.secrets["firebase"]["auth_uri"],
-        "token_uri": st.secrets["firebase"]["token_uri"],
-        "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
-    }
-
-    cred = credentials.Certificate(firebase_dict)
+    cred = credentials.Certificate(dict(st.secrets["firebase"]))
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
@@ -53,6 +41,33 @@ def extract_text_from_pdf(file):
             text += page.extract_text()
     return text
 
+# ---------------- CREATE PDF REPORT ----------------
+def generate_pdf(role, score, ats_score, match_score, level, roadmap, projects):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True, align="C")
+    pdf.ln(5)
+
+    pdf.cell(200, 10, txt=f"Target Role: {role}", ln=True)
+    pdf.cell(200, 10, txt=f"Skill Score: {score}%", ln=True)
+    pdf.cell(200, 10, txt=f"ATS Score: {ats_score}%", ln=True)
+    pdf.cell(200, 10, txt=f"JD Match Score: {match_score}%", ln=True)
+    pdf.cell(200, 10, txt=f"Level: {level}", ln=True)
+
+    pdf.ln(5)
+    pdf.cell(200, 10, txt="Learning Roadmap:", ln=True)
+    for step in roadmap:
+        pdf.multi_cell(0, 8, txt=f"- {step}")
+
+    pdf.ln(5)
+    pdf.cell(200, 10, txt="Suggested Projects:", ln=True)
+    for proj in projects:
+        pdf.multi_cell(0, 8, txt=f"- {proj}")
+
+    return pdf.output(dest="S").encode("latin-1")
+
 # ---------------- SESSION ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -60,21 +75,18 @@ if "logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# ---------------- LOGIN UI ----------------
+# ---------------- LOGIN ----------------
 if not st.session_state.logged_in:
 
     st.title("🚀 AI Career Copilot")
-    st.subheader("Login / Signup")
-
     choice = st.radio("Choose", ["Login", "Signup"])
-
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if choice == "Signup":
         if st.button("Create Account"):
             create_user(email, password)
-            st.success("Account created! Now login.")
+            st.success("Account created! Login now.")
 
     if choice == "Login":
         if st.button("Login"):
@@ -104,118 +116,145 @@ else:
     jd_text = st.text_area("Paste Job Description (Optional)")
 
     if uploaded_file:
+
         text = extract_text_from_pdf(uploaded_file)
 
         # ---------------- SKILLS ----------------
-        if role == "Software Developer":
-            skills = ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"]
-        elif role == "Data Scientist":
-            skills = ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"]
-        else:
-            skills = ["AWS", "Cloud", "Linux", "Docker", "Python"]
+        role_skills = {
+            "Software Developer": ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"],
+            "Data Scientist": ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"],
+            "Cloud Engineer": ["AWS", "Cloud", "Linux", "Docker", "Python"]
+        }
+
+        skills = role_skills[role]
 
         found_skills = [s for s in skills if s.lower() in text.lower()]
         missing_skills = [s for s in skills if s not in found_skills]
 
-        # ---------------- SCORES ----------------
         score = int((len(found_skills) / len(skills)) * 100)
 
+        # ATS SCORE
         ats_score = 0
-        if "skills" in text.lower(): ats_score += 20
-        if "project" in text.lower(): ats_score += 20
-        if "experience" in text.lower(): ats_score += 20
-        if "education" in text.lower(): ats_score += 20
-        if len(text.split()) > 200: ats_score += 20
+        for word in ["skills", "project", "experience", "education"]:
+            if word in text.lower():
+                ats_score += 20
+        if len(text.split()) > 200:
+            ats_score += 20
 
+        # JD MATCH
         match_score = 0
         if jd_text:
-            jd_words = jd_text.lower().split()
-            resume_words = text.lower().split()
-            common = set(jd_words).intersection(set(resume_words))
+            jd_words = set(jd_text.lower().split())
+            resume_words = set(text.lower().split())
             if len(jd_words) > 0:
-                match_score = int((len(common)/len(jd_words))*100)
+                match_score = int((len(jd_words.intersection(resume_words)) / len(jd_words)) * 100)
 
         # ---------------- DISPLAY SCORES ----------------
         st.subheader("📊 Resume Skill Score")
         st.progress(score)
-        st.write(score)
+        st.write(f"{score}%")
 
         st.subheader("🤖 ATS Score")
         st.progress(ats_score)
-        st.write(ats_score)
+        st.write(f"{ats_score}%")
 
         if jd_text:
             st.subheader("🎯 JD Match Score")
             st.progress(match_score)
-            st.write(match_score)
+            st.write(f"{match_score}%")
+
+        # ---------------- OVERALL LEVEL ----------------
+        avg = (score + ats_score + match_score) / 3 if jd_text else (score + ats_score) / 2
+
+        if avg < 50:
+            level = "Beginner"
+            st.error("🔴 Beginner Level")
+        elif avg < 75:
+            level = "Intermediate"
+            st.warning("🟡 Intermediate Level")
+        else:
+            level = "Strong Candidate"
+            st.success("🟢 Strong Candidate")
 
         # ---------------- ROADMAP ----------------
         st.subheader("🧭 Personalized Learning Roadmap")
 
-        if role == "Software Developer":
-            roadmap = [
-                "Learn Python/Java deeply",
+        roadmap_map = {
+            "Software Developer": [
                 "Master DSA",
-                "Build 5 projects",
-                "Learn Git & System Design",
-                "Apply for SDE roles"
+                "Build Full Stack Projects",
+                "Learn System Design",
+                "Contribute to Open Source",
+                "Practice Mock Interviews"
+            ],
+            "Data Scientist": [
+                "Advanced ML & Deep Learning",
+                "Work on Real Datasets",
+                "Deploy ML Models",
+                "Participate in Kaggle",
+                "Build Portfolio"
+            ],
+            "Cloud Engineer": [
+                "Master AWS Core Services",
+                "Learn CI/CD",
+                "Infrastructure as Code",
+                "Deploy Real Projects",
+                "Get AWS Certification"
             ]
-        elif role == "Data Scientist":
-            roadmap = [
-                "Master Python & Pandas",
-                "Learn Statistics",
-                "Practice ML models",
-                "Build data projects",
-                "Apply for data roles"
-            ]
-        else:
-            roadmap = [
-                "Learn Linux basics",
-                "Learn AWS core services",
-                "Practice Docker",
-                "Build cloud projects",
-                "Get AWS certification"
-            ]
+        }
 
+        roadmap = roadmap_map[role]
         for step in roadmap:
             st.write("•", step)
 
         # ---------------- PROJECT SUGGESTIONS ----------------
         st.subheader("🚀 Suggested Projects")
 
-        project_map = {
-            "Python": ["AI Chatbot", "Automation Tool"],
-            "AWS": ["Deploy website on EC2", "Serverless app"],
-            "SQL": ["Library DB system"],
-            "Machine Learning": ["Spam classifier"],
-            "Docker": ["Containerize Flask app"],
-            "Linux": ["Log monitoring tool"]
+        advanced_projects = {
+            "Software Developer": [
+                "Full Stack E-commerce Platform",
+                "Scalable Chat Application",
+                "Microservices Architecture Project"
+            ],
+            "Data Scientist": [
+                "End-to-End ML Deployment",
+                "Stock Prediction System",
+                "AI Recommendation Engine"
+            ],
+            "Cloud Engineer": [
+                "Multi-tier AWS Deployment",
+                "Serverless Web App",
+                "CI/CD Pipeline on AWS"
+            ]
+        }
+
+        learning_projects = {
+            "Python": ["Automation Script", "Mini AI Chatbot"],
+            "AWS": ["Deploy Website on EC2"],
+            "Docker": ["Dockerize Flask App"],
+            "Machine Learning": ["Spam Classifier"]
         }
 
         suggested_projects = []
-        for skill in missing_skills:
-            if skill in project_map:
-                suggested_projects.extend(project_map[skill])
 
-        if suggested_projects:
-            for p in suggested_projects:
-                st.write("•", p)
+        if missing_skills:
+            for skill in missing_skills:
+                if skill in learning_projects:
+                    suggested_projects.extend(learning_projects[skill])
         else:
-            st.write("🔥 Strong profile already!")
+            suggested_projects = advanced_projects[role]
+
+        for proj in suggested_projects:
+            st.write("•", proj)
 
         # ---------------- PDF DOWNLOAD ----------------
         st.subheader("📄 Download PDF Report")
 
-        if st.button("Generate Report"):
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
+        pdf_data = generate_pdf(role, score, ats_score, match_score, level, roadmap, suggested_projects)
 
-            pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True)
-            pdf.cell(200, 10, txt=f"Skill Score: {score}", ln=True)
-            pdf.cell(200, 10, txt=f"ATS Score: {ats_score}", ln=True)
-
-            pdf.output("report.pdf")
-
-            with open("report.pdf", "rb") as f:
-                st.download_button("Download Report", f, file_name="career_report.pdf")
+        st.download_button(
+            label="Download Report",
+            data=pdf_data,
+            file_name="career_report.pdf",
+            mime="application/pdf"
+        )
