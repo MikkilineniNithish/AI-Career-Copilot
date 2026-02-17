@@ -6,7 +6,6 @@ import PyPDF2
 import datetime
 from fpdf import FPDF
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
 # ---------------- FIREBASE CONNECT ----------------
@@ -33,14 +32,12 @@ db = firestore.client()
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ---------------- USER CREATE ----------------
 def create_user(email, password):
     db.collection("users").document(email).set({
         "email": email,
         "password": hash_password(password)
     })
 
-# ---------------- USER CHECK ----------------
 def check_user(email, password):
     user_doc = db.collection("users").document(email).get()
     if user_doc.exists:
@@ -55,37 +52,6 @@ def extract_text_from_pdf(file):
         if page.extract_text():
             text += page.extract_text()
     return text
-
-# ---------------- CREATE REPORT PDF ----------------
-def create_pdf(role, score, ats_score, match_score, missing_skills, roadmap, projects):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-
-    pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True, align="C")
-    pdf.ln(5)
-
-    pdf.cell(200, 10, txt=f"Target Role: {role}", ln=True)
-    pdf.cell(200, 10, txt=f"Skill Score: {score}%", ln=True)
-    pdf.cell(200, 10, txt=f"ATS Score: {ats_score}%", ln=True)
-    pdf.cell(200, 10, txt=f"JD Match Score: {match_score}%", ln=True)
-
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Missing Skills:", ln=True)
-    for skill in missing_skills:
-        pdf.cell(200, 10, txt=f"- {skill}", ln=True)
-
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Learning Roadmap:", ln=True)
-    for step in roadmap:
-        pdf.cell(200, 10, txt=f"- {step}", ln=True)
-
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Suggested Projects:", ln=True)
-    for proj in projects[:6]:
-        pdf.cell(200, 10, txt=f"- {proj}", ln=True)
-
-    return pdf.output(dest="S").encode("latin-1")
 
 # ---------------- SESSION ----------------
 if "logged_in" not in st.session_state:
@@ -140,37 +106,18 @@ else:
     if uploaded_file:
         text = extract_text_from_pdf(uploaded_file)
 
+        # ---------------- SKILLS ----------------
         if role == "Software Developer":
             skills = ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"]
-            roadmap = [
-                "Strengthen Programming",
-                "Learn DSA",
-                "Build Projects",
-                "Learn System Design",
-                "Apply for SDE roles"
-            ]
         elif role == "Data Scientist":
             skills = ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"]
-            roadmap = [
-                "Master Python",
-                "Learn Statistics",
-                "Practice ML",
-                "Build Data Projects",
-                "Apply for Data roles"
-            ]
         else:
             skills = ["AWS", "Cloud", "Linux", "Docker", "Python"]
-            roadmap = [
-                "Learn Linux",
-                "Learn AWS Core",
-                "Practice Docker",
-                "Build Cloud Projects",
-                "Get AWS Certification"
-            ]
 
         found_skills = [s for s in skills if s.lower() in text.lower()]
         missing_skills = [s for s in skills if s not in found_skills]
 
+        # ---------------- SCORES ----------------
         score = int((len(found_skills) / len(skills)) * 100)
 
         ats_score = 0
@@ -188,6 +135,7 @@ else:
             if len(jd_words) > 0:
                 match_score = int((len(common)/len(jd_words))*100)
 
+        # ---------------- DISPLAY SCORES ----------------
         st.subheader("📊 Resume Skill Score")
         st.progress(score)
         st.write(score)
@@ -201,17 +149,47 @@ else:
             st.progress(match_score)
             st.write(match_score)
 
-        st.subheader("❌ Missing Skills")
-        st.write(missing_skills)
+        # ---------------- ROADMAP ----------------
+        st.subheader("🧭 Personalized Learning Roadmap")
 
-        # PROJECT SUGGESTIONS
+        if role == "Software Developer":
+            roadmap = [
+                "Learn Python/Java deeply",
+                "Master DSA",
+                "Build 5 projects",
+                "Learn Git & System Design",
+                "Apply for SDE roles"
+            ]
+        elif role == "Data Scientist":
+            roadmap = [
+                "Master Python & Pandas",
+                "Learn Statistics",
+                "Practice ML models",
+                "Build data projects",
+                "Apply for data roles"
+            ]
+        else:
+            roadmap = [
+                "Learn Linux basics",
+                "Learn AWS core services",
+                "Practice Docker",
+                "Build cloud projects",
+                "Get AWS certification"
+            ]
+
+        for step in roadmap:
+            st.write("•", step)
+
+        # ---------------- PROJECT SUGGESTIONS ----------------
+        st.subheader("🚀 Suggested Projects")
+
         project_map = {
-            "Python": ["AI Chatbot", "Automation Script"],
-            "SQL": ["Library DB System"],
-            "AWS": ["Deploy Website EC2"],
-            "Docker": ["Containerize App"],
-            "Machine Learning": ["Prediction Model"],
-            "Linux": ["Shell Script Tool"]
+            "Python": ["AI Chatbot", "Automation Tool"],
+            "AWS": ["Deploy website on EC2", "Serverless app"],
+            "SQL": ["Library DB system"],
+            "Machine Learning": ["Spam classifier"],
+            "Docker": ["Containerize Flask app"],
+            "Linux": ["Log monitoring tool"]
         }
 
         suggested_projects = []
@@ -219,16 +197,25 @@ else:
             if skill in project_map:
                 suggested_projects.extend(project_map[skill])
 
-        st.subheader("🚀 Suggested Projects")
-        for proj in suggested_projects[:6]:
-            st.write("•", proj)
+        if suggested_projects:
+            for p in suggested_projects:
+                st.write("•", p)
+        else:
+            st.write("🔥 Strong profile already!")
 
         # ---------------- PDF DOWNLOAD ----------------
-        pdf_data = create_pdf(role, score, ats_score, match_score, missing_skills, roadmap, suggested_projects)
+        st.subheader("📄 Download PDF Report")
 
-        st.download_button(
-            label="📄 Download PDF Report",
-            data=pdf_data,
-            file_name="career_report.pdf",
-            mime="application/pdf"
-        )
+        if st.button("Generate Report"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+
+            pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True)
+            pdf.cell(200, 10, txt=f"Skill Score: {score}", ln=True)
+            pdf.cell(200, 10, txt=f"ATS Score: {ats_score}", ln=True)
+
+            pdf.output("report.pdf")
+
+            with open("report.pdf", "rb") as f:
+                st.download_button("Download Report", f, file_name="career_report.pdf")
