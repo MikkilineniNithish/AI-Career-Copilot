@@ -9,6 +9,26 @@ from fpdf import FPDF
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
+# ---------------- CUSTOM UI STYLE ----------------
+st.markdown("""
+    <style>
+    .main-title {
+        font-size:40px;
+        font-weight:700;
+        background: linear-gradient(to right, #4e73df, #1cc88a);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .card {
+        padding:20px;
+        border-radius:15px;
+        background-color:#f8f9fc;
+        box-shadow:0 4px 8px rgba(0,0,0,0.05);
+        margin-bottom:20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ---------------- FIREBASE CONNECT ----------------
 if not firebase_admin._apps:
     firebase_dict = {
@@ -29,18 +49,21 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+# ---------------- ADMIN CONFIG ----------------
+ADMIN_EMAIL = "copilotaicareer@gmail.com"
+ADMIN_PASSWORD = "admin123"
+
 # ---------------- PASSWORD HASH ----------------
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ---------------- USER CREATE ----------------
+# ---------------- USER FUNCTIONS ----------------
 def create_user(email, password):
     db.collection("users").document(email).set({
         "email": email,
         "password": hash_password(password)
     })
 
-# ---------------- USER CHECK ----------------
 def check_user(email, password):
     user_doc = db.collection("users").document(email).get()
     if user_doc.exists:
@@ -56,33 +79,6 @@ def extract_text_from_pdf(file):
             text += page.extract_text()
     return text
 
-# ---------------- PDF REPORT ----------------
-def create_pdf(role, score, ats_score, jd_score, found_skills, missing_skills, level):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-
-    pdf.cell(200, 10, txt="AI Career Copilot Report", ln=True, align="C")
-    pdf.ln(10)
-
-    pdf.cell(200, 10, txt=f"Role: {role}", ln=True)
-    pdf.cell(200, 10, txt=f"Skill Score: {score}%", ln=True)
-    pdf.cell(200, 10, txt=f"ATS Score: {ats_score}%", ln=True)
-    pdf.cell(200, 10, txt=f"JD Match Score: {jd_score}%", ln=True)
-    pdf.cell(200, 10, txt=f"Level: {level}", ln=True)
-
-    pdf.ln(10)
-    pdf.cell(200, 10, txt="Skills Found:", ln=True)
-    for s in found_skills:
-        pdf.cell(200, 10, txt=f"- {s}", ln=True)
-
-    pdf.ln(5)
-    pdf.cell(200, 10, txt="Missing Skills:", ln=True)
-    for s in missing_skills:
-        pdf.cell(200, 10, txt=f"- {s}", ln=True)
-
-    return pdf.output(dest="S").encode("latin-1")
-
 # ---------------- SESSION ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -90,10 +86,13 @@ if "logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
+if "admin_mode" not in st.session_state:
+    st.session_state.admin_mode = False
+
 # ---------------- LOGIN UI ----------------
 if not st.session_state.logged_in:
 
-    st.title("🚀 AI Career Copilot")
+    st.markdown('<div class="main-title">🚀 AI Career Copilot</div>', unsafe_allow_html=True)
     st.subheader("Login / Signup")
 
     choice = st.radio("Choose", ["Login", "Signup"])
@@ -119,159 +118,157 @@ if not st.session_state.logged_in:
 else:
 
     st.sidebar.success(f"Logged in as {st.session_state.user_email}")
+
+    if st.sidebar.button("Admin Dashboard"):
+        st.session_state.admin_mode = True
+
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🤖 AI Career Copilot")
+    # ---------------- ADMIN DASHBOARD ----------------
+    if st.session_state.admin_mode:
 
-    role = st.selectbox(
-        "Select Target Role",
-        ["Software Developer", "Data Scientist", "Cloud Engineer"]
-    )
+        st.title("📊 Admin Analytics Dashboard")
 
-    uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
-    jd_text = st.text_area("Paste Job Description (Optional)")
+        users = list(db.collection("users").stream())
+        total_users = len(users)
 
-    if uploaded_file:
-        text = extract_text_from_pdf(uploaded_file)
+        total_resumes = 0
+        total_skill = 0
+        total_ats = 0
+        total_jd = 0
+        strong = 0
+        intermediate = 0
+        beginner = 0
 
-        # ---------------- SKILLS ----------------
-        if role == "Software Developer":
-            skills = ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"]
-        elif role == "Data Scientist":
-            skills = ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"]
-        else:
-            skills = ["AWS", "Cloud", "Linux", "Docker", "Python"]
+        for user in users:
+            history = db.collection("users").document(user.id).collection("history").stream()
+            for record in history:
+                data = record.to_dict()
+                total_resumes += 1
+                total_skill += data.get("skill_score", 0)
+                total_ats += data.get("ats_score", 0)
+                total_jd += data.get("jd_score", 0)
 
-        found_skills = [s for s in skills if s.lower() in text.lower()]
-        missing_skills = [s for s in skills if s not in found_skills]
+                avg = (data.get("skill_score",0) + data.get("ats_score",0) + data.get("jd_score",0)) / 3
 
-        score = int((len(found_skills) / len(skills)) * 100)
+                if avg < 50:
+                    beginner += 1
+                elif avg < 75:
+                    intermediate += 1
+                else:
+                    strong += 1
 
-        ats_score = 0
-        if "skills" in text.lower(): ats_score += 20
-        if "project" in text.lower(): ats_score += 20
-        if "experience" in text.lower(): ats_score += 20
-        if "education" in text.lower(): ats_score += 20
-        if len(text.split()) > 200: ats_score += 20
+        col1, col2, col3 = st.columns(3)
+        col1.metric("👥 Total Users", total_users)
+        col2.metric("📄 Total Resume Analyses", total_resumes)
+        col3.metric("🏆 Strong Profiles", strong)
 
-        match_score = 0
-        if jd_text:
-            jd_words = jd_text.lower().split()
-            resume_words = text.lower().split()
-            common = set(jd_words).intersection(set(resume_words))
-            if len(jd_words) > 0:
-                match_score = int((len(common)/len(jd_words))*100)
+        if total_resumes > 0:
+            st.metric("📊 Avg Skill Score", int(total_skill/total_resumes))
+            st.metric("🤖 Avg ATS Score", int(total_ats/total_resumes))
+            st.metric("🎯 Avg JD Score", int(total_jd/total_resumes))
 
-        # ---------------- LEVEL ----------------
-        avg = int((score + ats_score + match_score)/3) if jd_text else int((score + ats_score)/2)
+        st.subheader("Profile Distribution")
+        st.write("🔴 Beginner:", beginner)
+        st.write("🟡 Intermediate:", intermediate)
+        st.write("🟢 Strong:", strong)
 
-        if avg < 50:
-            level = "Beginner"
-            st.error("🔴 Beginner Profile")
-        elif avg < 75:
-            level = "Intermediate"
-            st.warning("🟡 Intermediate Profile")
-        else:
-            level = "Strong Candidate"
-            st.success("🟢 Strong Profile")
+        if st.button("Exit Admin"):
+            st.session_state.admin_mode = False
+            st.rerun()
 
-        # ---------------- SAVE HISTORY ----------------
-        db.collection("users") \
-            .document(st.session_state.user_email) \
-            .collection("history") \
-            .add({
-                "role": role,
-                "skill_score": score,
-                "ats_score": ats_score,
-                "jd_score": match_score,
-                "timestamp": datetime.datetime.utcnow()
-            })
+    # ---------------- USER APP ----------------
+    else:
 
-        # ---------------- SCORES ----------------
-        st.subheader("📊 Skill Score")
-        st.progress(score)
-        st.write(score)
+        st.markdown('<div class="main-title">🤖 AI Career Copilot</div>', unsafe_allow_html=True)
 
-        st.subheader("🤖 ATS Score")
-        st.progress(ats_score)
-        st.write(ats_score)
-
-        if jd_text:
-            st.subheader("🎯 JD Match Score")
-            st.progress(match_score)
-            st.write(match_score)
-
-        st.metric("Overall Performance", f"{avg}%")
-
-        st.subheader("✅ Skills Found")
-        st.write(found_skills)
-
-        st.subheader("❌ Missing Skills")
-        st.write(missing_skills)
-
-        # ---------------- ROADMAP ----------------
-        st.subheader("🧭 Personalized Learning Roadmap")
-
-        if role == "Software Developer":
-            roadmap = [
-                "Learn Python/Java deeply",
-                "Master DSA",
-                "Build 5 projects",
-                "Learn System Design",
-                "Apply for SDE roles"
-            ]
-        elif role == "Data Scientist":
-            roadmap = [
-                "Python + Pandas",
-                "Statistics",
-                "Machine Learning",
-                "Data projects",
-                "Apply for DS roles"
-            ]
-        else:
-            roadmap = [
-                "Linux",
-                "AWS Core Services",
-                "Docker",
-                "Deploy projects",
-                "AWS Certification"
-            ]
-
-        for step in roadmap:
-            st.write("•", step)
-
-        # ---------------- PROJECTS ----------------
-        st.subheader("🚀 Suggested Projects")
-
-        project_map = {
-            "Python": ["AI Chatbot", "Automation Script"],
-            "SQL": ["Library DB System"],
-            "Java": ["Banking App"],
-            "AWS": ["Deploy website EC2+S3"],
-            "Docker": ["Dockerize Flask app"],
-            "Machine Learning": ["House Price Prediction"],
-            "Linux": ["Shell automation"]
-        }
-
-        suggested = []
-        for skill in missing_skills:
-            if skill in project_map:
-                suggested.extend(project_map[skill])
-
-        if suggested:
-            for p in suggested[:6]:
-                st.write("•", p)
-        else:
-            st.write("Your profile is strong. Start applying!")
-
-        # ---------------- PDF DOWNLOAD ----------------
-        pdf_data = create_pdf(role, score, ats_score, match_score, found_skills, missing_skills, level)
-
-        st.download_button(
-            "📄 Download PDF Report",
-            pdf_data,
-            "career_report.pdf",
-            "application/pdf"
+        role = st.selectbox(
+            "Select Target Role",
+            ["Software Developer", "Data Scientist", "Cloud Engineer"]
         )
+
+        uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
+        jd_text = st.text_area("Paste Job Description (Optional)")
+
+        if uploaded_file:
+            text = extract_text_from_pdf(uploaded_file)
+
+            if role == "Software Developer":
+                skills = ["Python", "Java", "SQL", "Git", "HTML", "CSS", "JavaScript"]
+            elif role == "Data Scientist":
+                skills = ["Python", "Machine Learning", "Pandas", "NumPy", "SQL"]
+            else:
+                skills = ["AWS", "Cloud", "Linux", "Docker", "Python"]
+
+            found_skills = [s for s in skills if s.lower() in text.lower()]
+            missing_skills = [s for s in skills if s not in found_skills]
+
+            score = int((len(found_skills)/len(skills))*100)
+
+            ats_score = 0
+            if "skills" in text.lower(): ats_score += 20
+            if "project" in text.lower(): ats_score += 20
+            if "experience" in text.lower(): ats_score += 20
+            if "education" in text.lower(): ats_score += 20
+            if len(text.split()) > 200: ats_score += 20
+
+            match_score = 0
+            if jd_text:
+                jd_words = jd_text.lower().split()
+                resume_words = text.lower().split()
+                common = set(jd_words).intersection(set(resume_words))
+                if len(jd_words) > 0:
+                    match_score = int((len(common)/len(jd_words))*100)
+
+            db.collection("users") \
+                .document(st.session_state.user_email) \
+                .collection("history") \
+                .add({
+                    "role": role,
+                    "skill_score": score,
+                    "ats_score": ats_score,
+                    "jd_score": match_score,
+                    "timestamp": datetime.datetime.utcnow()
+                })
+
+            st.subheader("📊 Performance Overview")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Skill Score", f"{score}%")
+            col2.metric("ATS Score", f"{ats_score}%")
+            col3.metric("JD Match", f"{match_score}%")
+
+            avg = (score + ats_score + match_score) / 3
+            if avg < 50:
+                st.error("🔴 Beginner Profile")
+            elif avg < 75:
+                st.warning("🟡 Intermediate Profile")
+            else:
+                st.success("🟢 Strong Candidate")
+
+            st.subheader("🚀 Suggested Projects")
+
+            role_projects = {
+                "Software Developer": [
+                    "Full Stack Web App",
+                    "Real-time Chat App",
+                    "Task Manager API",
+                    "Code Editor Platform"
+                ],
+                "Data Scientist": [
+                    "Stock Prediction Dashboard",
+                    "Customer Churn Model",
+                    "Resume Classifier AI",
+                    "End-to-End ML Pipeline"
+                ],
+                "Cloud Engineer": [
+                    "Deploy App on AWS",
+                    "CI/CD Pipeline",
+                    "Docker + Kubernetes Project",
+                    "Monitoring Dashboard"
+                ]
+            }
+
+            for proj in role_projects.get(role, []):
+                st.write("•", proj)
