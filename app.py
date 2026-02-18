@@ -1,98 +1,79 @@
 import streamlit as st
-import re
 from datetime import datetime
 
-# -------------------------------
-# CONFIG
-# -------------------------------
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
+# -------------------------
+# ADMIN SETTINGS
+# -------------------------
 ADMIN_EMAIL = "copilotaicareer@gmail.com"
-ADMIN_PASSWORD = "admin123"  # change later
 
-# In-memory logs (reset on restart)
 if "logs" not in st.session_state:
     st.session_state.logs = []
 
-if "admin_logged_in" not in st.session_state:
-    st.session_state.admin_logged_in = False
+# -------------------------
+# SKILLS DATABASE
+# -------------------------
+COMMON_SKILLS = [
+    "python","sql","aws","linux","docker","kubernetes",
+    "machine learning","deep learning","react","node",
+    "tensorflow","pandas","numpy","git"
+]
 
-# -------------------------------
-# CLEAN UI HEADER
-# -------------------------------
-st.markdown("""
-    <style>
-    .main-title {
-        font-size:34px;
-        font-weight:700;
-        color:#4CAF50;
-    }
-    .card {
-        padding:18px;
-        border-radius:12px;
-        background:#f5f7fb;
-        margin-bottom:10px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="main-title">🚀 AI Career Copilot</div>', unsafe_allow_html=True)
-st.caption("Upload Resume + Paste Job Description → Get ATS, Skills, Suggestions & Projects")
-
-# -------------------------------
-# ROLE → PROJECT DATABASE
-# -------------------------------
+# -------------------------
+# PROJECT DATABASE
+# -------------------------
 PROJECT_DB = {
     "data scientist": {
         "Beginner": [
-            "House Price Prediction using Linear Regression",
-            "Titanic Survival Prediction"
+            "House Price Prediction",
+            "Titanic ML Project"
         ],
         "Intermediate": [
             "Customer Churn Prediction",
             "Movie Recommendation System"
         ],
         "Strong": [
-            "End-to-End ML Pipeline + Deployment",
-            "Real-time Fraud Detection System"
+            "End-to-End ML Deployment",
+            "Real-time Fraud Detection"
         ],
     },
     "web developer": {
         "Beginner": [
-            "Personal Portfolio Website",
-            "To-Do App using HTML/CSS/JS"
+            "Portfolio Website",
+            "To-Do App"
         ],
         "Intermediate": [
-            "Full Stack Blog App (React + Node)",
+            "Full Stack Blog App",
             "JWT Authentication System"
         ],
         "Strong": [
-            "Scalable E-commerce Platform",
+            "E-commerce Platform",
             "Microservices Web App"
         ],
     },
     "cloud engineer": {
         "Beginner": [
-            "Deploy Static Website on AWS S3",
+            "Deploy Website on AWS S3",
             "Linux Server Setup"
         ],
         "Intermediate": [
-            "Auto-Scaling EC2 Project",
-            "CI/CD Pipeline (GitHub Actions)"
+            "Auto Scaling EC2 Project",
+            "CI/CD Pipeline"
         ],
         "Strong": [
-            "Terraform Infrastructure Project",
+            "Terraform Infra Project",
             "Kubernetes Deployment"
         ],
     },
     "ai engineer": {
         "Beginner": [
-            "Image Classifier using CNN",
+            "Image Classifier",
             "Basic Chatbot"
         ],
         "Intermediate": [
-            "Face Recognition Attendance System",
-            "Resume Skill Extractor (NLP)"
+            "Face Recognition System",
+            "Resume Skill Extractor"
         ],
         "Strong": [
             "LLM Career Assistant",
@@ -101,57 +82,51 @@ PROJECT_DB = {
     },
 }
 
-# -------------------------------
-# SKILLS DB
-# -------------------------------
-COMMON_SKILLS = [
-    "python","sql","aws","linux","docker","kubernetes",
-    "machine learning","deep learning","react","node",
-    "tensorflow","pandas","numpy","git"
-]
+# -------------------------
+# HEADER UI
+# -------------------------
+st.markdown("""
+    <style>
+    .title {
+        font-size:34px;
+        font-weight:700;
+        color:#4CAF50;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# -------------------------------
-# SIDEBAR → ADMIN LOGIN
-# -------------------------------
-st.sidebar.title("🔐 Admin Panel")
+st.markdown('<div class="title">🚀 AI Career Copilot</div>', unsafe_allow_html=True)
+st.caption("Upload Resume + Paste Job Description → Get ATS, Skills, Suggestions & Projects")
 
-email = st.sidebar.text_input("Email")
-password = st.sidebar.text_input("Password", type="password")
+# -------------------------
+# ADMIN ACCESS
+# -------------------------
+st.sidebar.title("Admin Access")
 
-if st.sidebar.button("Login"):
-    if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
-        st.session_state.admin_logged_in = True
-        st.sidebar.success("Logged in")
-    else:
-        st.sidebar.error("Invalid credentials")
+admin_email_input = st.sidebar.text_input("Enter Admin Email")
 
-# -------------------------------
-# ADMIN DASHBOARD
-# -------------------------------
-if st.session_state.admin_logged_in:
-    st.sidebar.markdown("---")
-    if st.sidebar.button("Open Dashboard"):
+if st.sidebar.button("Open Admin Dashboard"):
+    if admin_email_input == ADMIN_EMAIL:
         st.title("📊 Admin Dashboard")
 
-        total_users = len(st.session_state.logs)
+        st.metric("Total Resume Uploads", len(st.session_state.logs))
 
-        st.metric("Total Resume Uploads", total_users)
-
-        if total_users:
-            st.subheader("Recent Activity")
-            for log in reversed(st.session_state.logs[-10:]):
-                st.write(log)
+        st.subheader("Recent Activity")
+        for log in reversed(st.session_state.logs[-10:]):
+            st.write(log)
 
         st.stop()
+    else:
+        st.sidebar.error("Not authorized")
 
-# -------------------------------
-# MAIN USER FEATURE
-# -------------------------------
-st.markdown("### 📄 Upload Resume")
-resume = st.file_uploader("Upload Resume (TXT)", type=["txt"])
+# -------------------------
+# NORMAL USER AREA
+# -------------------------
+st.markdown("### 📄 Upload Resume (TXT)")
+resume = st.file_uploader("Upload Resume", type=["txt"])
 
 st.markdown("### 📋 Paste Job Description")
-jd = st.text_area("Job Description")
+jd = st.text_area("Paste JD here")
 
 if resume and jd:
     resume_text = resume.read().decode("utf-8").lower()
@@ -177,59 +152,59 @@ if resume and jd:
     # LEVEL COLOR
     if ats_score >= 75:
         level = "Strong"
-        level_color = "green"
+        color = "green"
     elif ats_score >= 45:
         level = "Intermediate"
-        level_color = "orange"
+        color = "orange"
     else:
         level = "Beginner"
-        level_color = "red"
+        color = "red"
 
     # SAVE LOG
     st.session_state.logs.append(
         f"{datetime.now().strftime('%d-%m %H:%M')} | ATS:{ats_score}% | Skill:{skill_score}%"
     )
 
-    # -----------------------
-    # SCORES UI
-    # -----------------------
+    # ---------------------
+    # SCORES
+    # ---------------------
     st.markdown("## 📊 Analysis")
 
     c1, c2, c3 = st.columns(3)
     c1.metric("ATS Score", f"{ats_score}%")
     c2.metric("Skill Score", f"{skill_score}%")
-    c3.markdown(f"**Level:** :{level_color}[{level}]")
+    c3.markdown(f"**Level:** :{color}[{level}]")
 
-    # -----------------------
+    # ---------------------
     # SKILLS SECTION
-    # -----------------------
+    # ---------------------
     st.markdown("## 🧠 Skills Match")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("**✅ Skills Matched**")
+        st.markdown("### ✅ Skills Found")
         st.write(", ".join(matched) if matched else "No strong matches")
 
     with col2:
-        st.markdown("**⚠ Skills Missing**")
+        st.markdown("### ⚠ Skills Missing")
         st.write(", ".join(missing) if missing else "No missing skills")
 
-    # -----------------------
+    # ---------------------
     # SUGGESTIONS
-    # -----------------------
+    # ---------------------
     st.markdown("## 💡 Suggestions")
 
     if missing:
         st.write("• Add missing skills to resume")
         st.write("• Build projects using missing skills")
-        st.write("• Add certifications for role match")
+        st.write("• Add certifications")
     else:
-        st.write("• Good profile — improve deployments & real-world projects")
+        st.write("• Strong profile — focus on advanced projects & deployment")
 
-    # -----------------------
+    # ---------------------
     # PROJECTS
-    # -----------------------
+    # ---------------------
     st.markdown("## 🚀 Suggested Projects")
 
     if detected_role:
@@ -237,11 +212,11 @@ if resume and jd:
 
         for lvl, projects in PROJECT_DB[detected_role].items():
             if lvl == "Beginner":
-                st.markdown("### 🟢 Beginner")
+                st.markdown("### 🟢 Beginner Projects")
             elif lvl == "Intermediate":
-                st.markdown("### 🟠 Intermediate")
+                st.markdown("### 🟠 Intermediate Projects")
             else:
-                st.markdown("### 🔴 Strong Candidate")
+                st.markdown("### 🔴 Strong Candidate Projects")
 
             for p in projects:
                 st.write("•", p)
