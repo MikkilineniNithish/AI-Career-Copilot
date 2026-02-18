@@ -1,5 +1,7 @@
 import streamlit as st
 from datetime import datetime
+import PyPDF2
+import docx
 
 st.set_page_config(page_title="AI Career Copilot", layout="wide")
 
@@ -83,6 +85,28 @@ PROJECT_DB = {
 }
 
 # -------------------------
+# TEXT EXTRACTOR (NEW FIX)
+# -------------------------
+def extract_text(file):
+    text = ""
+
+    if file.name.endswith(".pdf"):
+        reader = PyPDF2.PdfReader(file)
+        for page in reader.pages:
+            if page.extract_text():
+                text += page.extract_text()
+
+    elif file.name.endswith(".docx"):
+        doc = docx.Document(file)
+        for para in doc.paragraphs:
+            text += para.text
+
+    elif file.name.endswith(".txt"):
+        text = file.read().decode("utf-8")
+
+    return text.lower()
+
+# -------------------------
 # HEADER UI
 # -------------------------
 st.markdown("""
@@ -122,14 +146,14 @@ if st.sidebar.button("Open Admin Dashboard"):
 # -------------------------
 # NORMAL USER AREA
 # -------------------------
-st.markdown("### 📄 Upload Resume (TXT)")
-resume = st.file_uploader("Upload Resume", type=["txt"])
+st.markdown("### 📄 Upload Resume (PDF / DOCX / TXT)")
+resume = st.file_uploader("Upload Resume", type=None)
 
 st.markdown("### 📋 Paste Job Description")
 jd = st.text_area("Paste JD here")
 
 if resume and jd:
-    resume_text = resume.read().decode("utf-8").lower()
+    resume_text = extract_text(resume)
     jd_text = jd.lower()
 
     # ATS SCORE
