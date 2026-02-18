@@ -85,24 +85,29 @@ PROJECT_DB = {
 }
 
 # -------------------------
-# TEXT EXTRACTOR (NEW FIX)
+# TEXT EXTRACTOR
 # -------------------------
 def extract_text(file):
     text = ""
 
-    if file.name.endswith(".pdf"):
-        reader = PyPDF2.PdfReader(file)
-        for page in reader.pages:
-            if page.extract_text():
-                text += page.extract_text()
+    try:
+        if file.name.endswith(".pdf"):
+            reader = PyPDF2.PdfReader(file)
+            for page in reader.pages:
+                if page.extract_text():
+                    text += page.extract_text()
 
-    elif file.name.endswith(".docx"):
-        doc = docx.Document(file)
-        for para in doc.paragraphs:
-            text += para.text
+        elif file.name.endswith(".docx"):
+            doc = docx.Document(file)
+            for para in doc.paragraphs:
+                text += para.text
 
-    elif file.name.endswith(".txt"):
-        text = file.read().decode("utf-8")
+        elif file.name.endswith(".txt"):
+            text = file.read().decode("utf-8")
+
+    except Exception as e:
+        st.error("Error reading file. Please upload a valid resume.")
+        return ""
 
     return text.lower()
 
@@ -147,14 +152,33 @@ if st.sidebar.button("Open Admin Dashboard"):
 # NORMAL USER AREA
 # -------------------------
 st.markdown("### 📄 Upload Resume (PDF / DOCX / TXT)")
-resume = st.file_uploader("Upload Resume", type=None)
+resume = st.file_uploader("Upload Resume", type=["pdf","docx","txt"])
 
 st.markdown("### 📋 Paste Job Description")
 jd = st.text_area("Paste JD here")
 
-if resume and jd:
+analyze = st.button("🔍 Analyze Resume")
+
+# -------------------------
+# ANALYSIS LOGIC
+# -------------------------
+if analyze:
+
+    if not resume:
+        st.error("Please upload your resume.")
+        st.stop()
+
+    if not jd:
+        st.error("Please paste Job Description.")
+        st.stop()
+
+    st.success("Resume Uploaded Successfully ✅")
+
     resume_text = extract_text(resume)
     jd_text = jd.lower()
+
+    if resume_text == "":
+        st.stop()
 
     # ATS SCORE
     jd_words = set(jd_text.split())
@@ -173,7 +197,7 @@ if resume and jd:
             detected_role = role
             break
 
-    # LEVEL COLOR
+    # LEVEL
     if ats_score >= 75:
         level = "Strong"
         color = "green"
@@ -200,7 +224,7 @@ if resume and jd:
     c3.markdown(f"**Level:** :{color}[{level}]")
 
     # ---------------------
-    # SKILLS SECTION
+    # SKILLS
     # ---------------------
     st.markdown("## 🧠 Skills Match")
 
@@ -246,3 +270,7 @@ if resume and jd:
                 st.write("•", p)
     else:
         st.warning("Role not detected. Add role name in JD.")
+
+# Helpful message
+elif resume:
+    st.info("Resume uploaded. Now paste JD and click Analyze.")
